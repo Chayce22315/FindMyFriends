@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FindMyFriends Beta</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f7f8;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    h1 {
+      color: #1a1a1a;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .qr-section {
+      text-align: center;
+      background: #fff;
+      padding: 2rem;
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
+    .qr-section img {
+      width: 80%;
+      max-width: 250px;
+      border-radius: 15px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    }
+
+    button {
+      background: #4CAF50;
+      color: white;
+      padding: 0.8rem 2rem;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #45a049;
+    }
+
+    #location-status {
+      margin-top: 1rem;
+      font-size: 0.95rem;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>FindMyFriends Beta</h1>
+
+  <div class="qr-section">
+    <h2>Scan & Install</h2>
+    <img src="Assets/Qq36jo5KsCvgRJm.PNG" alt="QR code for beta app">
+    <p>Scan this QR code to download the beta app directly to your device.</p>
+  </div>
+
+  <button id="check-location">Check My Location</button>
+  <p id="location-status">Location not checked yet.</p>
+
+  <script>
+    const button = document.getElementById('check-location');
+    const status = document.getElementById('location-status');
+
+    button.addEventListener('click', () => {
+      if (navigator.geolocation) {
+        status.textContent = 'Fetching location...';
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            status.textContent = `Your location: Lat ${latitude.toFixed(4)}, Lng ${longitude.toFixed(4)}`;
+          },
+          (error) => {
+            status.textContent = 'Location access denied or unavailable.';
+          }
+        );
+      } else {
+        status.textContent = 'Geolocation is not supported by your browser.';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+{
+	"name": "swiftstream",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": {}
+	},
+	"containerEnv": {
+		"S_MODE": "PURE",
+		"S_TOOLCHAIN_URL_X86": "https://download.swift.org/swift-5.10.1-release/ubuntu2404/swift-5.10.1-RELEASE/swift-5.10.1-RELEASE-ubuntu24.04.tar.gz",
+		"S_TOOLCHAIN_URL_ARM": "https://download.swift.org/swift-5.10.1-release/ubuntu2404-aarch64/swift-5.10.1-RELEASE/swift-5.10.1-RELEASE-ubuntu24.04-aarch64.tar.gz",
+		"S_VERSION_MAJOR": "5",
+		"S_VERSION_MINOR": "10",
+		"S_VERSION_PATCH": "1"
+	},
+	"appPort": [],
+	"otherPortsAttributes": {},
+	"postStartCommand": "cmd.sh",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"swiftstream.swiftstream",
+				"swiftlang.swift-vscode",
+				"mateocerquetella.xcode-12-theme"
+			],
+			"settings": {
+				"extensions.ignoreRecommendations": true,
+				"remote.autoForwardPorts": false,
+				"swift.path": "/swift/toolchains/5.10.1-RELEASE/usr/bin",
+				"swift.swiftEnvironmentVariables": {
+					"DEVELOPER_DIR": "public"
+				},
+				"lldb.library": "/swift/toolchains/5.10.1-RELEASE/usr/lib/liblldb.so",
+				"lldb.launch.expressions": "native",
+				"swift.autoGenerateLaunchConfigurations": true,
+				"swift.backgroundCompilation": false,
+				"swift.showCreateSwiftProjectInWelcomePage": false,
+				"editor.semanticHighlighting.enabled": true
+			}
+		}
+	},
+	"capAdd": [
+		"SYS_PTRACE"
+	],
+	"securityOpt": [
+		"seccomp=unconfined"
+	],
+	"mounts": [
+		{
+			"source": "${localWorkspaceFolderBasename}-swiftbuild",
+			"target": "${containerWorkspaceFolder}/.build",
+			"type": "volume"
+		},
+		{
+			"source": "swift-toolchains",
+			"target": "/swift/toolchains",
+			"type": "volume"
+		},
+		{
+			"source": "swift-sdks",
+			"target": "/swift/sdks",
+			"type": "volume"
+		}
+	]
+}
