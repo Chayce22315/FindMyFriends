@@ -32,7 +32,7 @@ jobs:
             -exportPath $PWD/build
 
       - name: Upload IPA artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: FindMyFriends-IPA
           path: build/*.ipa
