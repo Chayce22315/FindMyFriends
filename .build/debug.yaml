@@ -1,0 +1,73 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "App-debug.exe": ["<App-debug.exe>"]
+  "App-debug.module": ["<App-debug.module>"]
+  "PackageStructure": ["<PackageStructure>"]
+  "main": ["<App-debug.exe>","<App-debug.module>"]
+  "test": ["<App-debug.exe>","<App-debug.module>"]
+default: "main"
+nodes:
+  "/workspaces/FindMyFriends/lib/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/App.swiftmodule.o":
+    tool: shell
+    inputs: ["/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.swiftmodule"]
+    outputs: ["/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/App.swiftmodule.o"]
+    description: "Wrapping AST for App for debugging"
+    args: ["/swift/toolchains/5.10.1-RELEASE/usr/bin/swiftc","-modulewrap","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.swiftmodule","-o","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/App.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/workspaces/FindMyFriends/lib/App/main.swift"]
+    outputs: ["/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/sources"]
+    description: "Write auxiliary file /workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/sources"
+
+  "/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/App.swiftmodule.o","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/main.swift.o"]
+    outputs: ["/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.product/Objects.LinkFileList"
+
+  "/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/swift-version--13A4F7568A1850E2.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/swift/toolchains/5.10.1-RELEASE/usr/bin/swiftc"]
+    outputs: ["/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/swift-version--13A4F7568A1850E2.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/swift-version--13A4F7568A1850E2.txt"
+
+  "<App-debug.exe>":
+    tool: phony
+    inputs: ["/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App"]
+    outputs: ["<App-debug.exe>"]
+
+  "<App-debug.module>":
+    tool: phony
+    inputs: ["/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/main.swift.o","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.swiftmodule"]
+    outputs: ["<App-debug.module>"]
+
+  "C.App-debug.exe":
+    tool: shell
+    inputs: ["/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/App.swiftmodule.o","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/main.swift.o","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.product/Objects.LinkFileList"]
+    outputs: ["/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App"]
+    description: "Linking ./.build/x86_64-unknown-linux-gnu/debug/App"
+    args: ["/swift/toolchains/5.10.1-RELEASE/usr/bin/swiftc","-L","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug","-o","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App","-module-name","App","-emit-executable","-Xlinker","--defsym","-Xlinker","main=App_main","-Xlinker","-rpath=$ORIGIN","@/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.product/Objects.LinkFileList","-target","x86_64-unknown-linux-gnu","-g"]
+
+  "C.App-debug.module":
+    tool: shell
+    inputs: ["/workspaces/FindMyFriends/lib/App/main.swift","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/swift-version--13A4F7568A1850E2.txt","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/sources"]
+    outputs: ["/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/main.swift.o","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.swiftmodule"]
+    description: "Compiling Swift Module 'App' (1 sources)"
+    args: ["/swift/toolchains/5.10.1-RELEASE/usr/bin/swiftc","-module-name","App","-emit-dependencies","-emit-module","-emit-module-path","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.swiftmodule","-output-file-map","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/output-file-map.json","-incremental","-c","@/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/sources","-I","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug","-target","x86_64-unknown-linux-gnu","-swift-version","5","-enable-batch-mode","-index-store-path","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/index/store","-Onone","-enable-testing","-j16","-DSWIFT_PACKAGE","-DDEBUG","-module-cache-path","/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","App_main","-color-diagnostics","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","findmyfriends","-Xcc","-fno-omit-frame-pointer"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/workspaces/FindMyFriends/lib/","/workspaces/FindMyFriends/Package.swift","/workspaces/FindMyFriends/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

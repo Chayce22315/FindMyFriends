@@ -1,0 +1,11 @@
+{
+  "": {
+    "swift-dependencies": "/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/master.swiftdeps"
+  },
+  "/workspaces/FindMyFriends/lib/App/main.swift": {
+    "dependencies": "/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/main.d",
+    "object": "/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/main.swift.o",
+    "swiftmodule": "/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/main~partial.swiftmodule",
+    "swift-dependencies": "/workspaces/FindMyFriends/.build/x86_64-unknown-linux-gnu/debug/App.build/main.swiftdeps"
+  }
+}

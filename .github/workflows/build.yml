@@ -1,0 +1,38 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Resolve Swift Packages
+        run: swift package resolve
+
+      - name: Build and Archive IPA
+        run: |
+          # build archive using the App scheme
+          xcodebuild \
+            -scheme App \
+            -destination "generic/platform=iOS" \
+            -configuration Release \
+            -archivePath $PWD/build/App.xcarchive archive
+
+          # export .ipa (unsigned / ad-hoc)
+          xcodebuild -exportArchive \
+            -archivePath $PWD/build/App.xcarchive \
+            -exportOptionsPlist exportOptions.plist \
+            -exportPath $PWD/build
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: FindMyFriends-IPA
+          path: build/*.ipa
