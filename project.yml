@@ -1,0 +1,13 @@
+name: FindMyFriends
+options:
+  bundleIdPrefix: com.pixelatedstudios
+  deploymentTarget:
+    iOS: '16.0'
+targets:
+  App:
+    type: application
+    platform: iOS
+    sources: [lib/App]
+    scheme:
+      build:
+        targets: [App]
