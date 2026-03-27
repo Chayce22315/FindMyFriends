@@ -19,9 +19,6 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Resolve Swift Packages
-        run: swift package resolve
-
       - name: Build and Archive IPA
         run: |
           xcodebuild \
