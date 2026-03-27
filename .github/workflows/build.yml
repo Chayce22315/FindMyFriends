@@ -2,8 +2,8 @@ name: Build iOS IPA
 
 on:
   push:
-    branches: [ master ]
-  workflow_dispatch:
+    branches: [ main ]   # triggers automatically on every push
+  workflow_dispatch:     # still allows manual trigger
 
 jobs:
   build:
@@ -19,14 +19,21 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Build and Archive IPA
+      - name: Build and Archive IPA (Unsigned)
         run: |
+          # Build archive without signing
           xcodebuild \
             -scheme App \
-            -destination "generic/platform=iOS" \
             -configuration Release \
-            -archivePath $PWD/build/App.xcarchive archive
+            -destination "generic/platform=iOS" \
+            -archivePath $PWD/build/App.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            archive
 
+          # Export IPA without signing
           xcodebuild -exportArchive \
             -archivePath $PWD/build/App.xcarchive \
             -exportOptionsPlist exportOptions.plist \
