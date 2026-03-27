@@ -44,7 +44,7 @@ jobs:
 
       # upload IPA as artifact
       - name: Upload IPA
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: FindMyFriends.ipa
           path: ${{ github.workspace }}/build/App/*.ipa
