@@ -1,13 +1,26 @@
 name: FindMyFriends
+
 options:
   bundleIdPrefix: com.pixelatedstudios
   deploymentTarget:
-    iOS: '16.0'
+    iOS: "16.0"
+
 targets:
   App:
     type: application
     platform: iOS
-    sources: [lib/App]
+
+    sources:
+      - path: lib/App
+
+    settings:
+      base:
+        PRODUCT_NAME: App
+        PRODUCT_BUNDLE_IDENTIFIER: com.pixelatedstudios.findmyfriends
+        SWIFT_VERSION: 5.0
+        INFOPLIST_FILE: Info.plist
+
     scheme:
       build:
-        targets: [App]
+        targets:
+          App: all
