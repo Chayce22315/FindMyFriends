@@ -6,6 +6,8 @@
     <string>Find My Friends</string>
     <key>CFBundleName</key>
     <string>FindMyFriends</string>
+    <key>CFBundleExecutable</key>
+    <string>FindMyFriends</string>
     <key>CFBundleIdentifier</key>
     <string>com.pixelatedstudios.findmyfriends</string>
     <key>CFBundleVersion</key>
