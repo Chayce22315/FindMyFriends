@@ -20,9 +20,11 @@ jobs:
       - name: Generate Xcode Project
         run: xcodegen generate
 
-      # build archive without signing
+      # build archive without signing (full log saved for debugging)
       - name: Build archive without signing
         run: |
+          set -o pipefail
+          mkdir -p "${{ github.workspace }}/build/logs"
           xcodebuild \
             -scheme App \
             -destination "generic/platform=iOS" \
@@ -32,12 +34,14 @@ jobs:
             DEVELOPMENT_TEAM="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            archive
+            archive \
+            2>&1 | tee "${{ github.workspace }}/build/logs/xcodebuild-archive.log"
 
       # Package unsigned IPA without exportArchive (no Apple team / signing required)
       - name: Package IPA from archive
         run: |
           set -euo pipefail
+          mkdir -p "${{ github.workspace }}/build/logs"
           ARCHIVE="${{ github.workspace }}/build/App.xcarchive"
           APP="${ARCHIVE}/Products/Applications/FindMyFriends.app"
           OUT="${{ github.workspace }}/build"
@@ -50,7 +54,7 @@ jobs:
           rm -rf "$STAGING"
           mkdir -p "$STAGING/Payload"
           cp -R "$APP" "$STAGING/Payload/"
-          (cd "$STAGING" && zip -r "$OUT/FindMyFriends.ipa" Payload)
+          (cd "$STAGING" && zip -r "$OUT/FindMyFriends.ipa" Payload) 2>&1 | tee "${{ github.workspace }}/build/logs/package-ipa.log"
           rm -rf "$STAGING"
           ls -la "$OUT/FindMyFriends.ipa"
 
@@ -60,3 +64,12 @@ jobs:
         with:
           name: FindMyFriends.ipa
           path: ${{ github.workspace }}/build/FindMyFriends.ipa
+
+      # full xcodebuild/package logs when something fails (UI often truncates the step)
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: ${{ github.workspace }}/build/logs/
+          if-no-files-found: ignore
