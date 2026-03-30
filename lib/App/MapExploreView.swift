@@ -103,15 +103,17 @@ struct MapExploreView: View {
             .contentMaxWidth()
         }
         .onAppear {
-            tracking.requestWhenInUse()
-            tracking.startLiveTracking(enabled: settings.trackingEnabled)
+            tracking.startLiveTracking(enabled: settings.trackingEnabled, allowBackground: settings.backgroundXPEnabled)
             recenterIfNeeded()
         }
         .onChange(of: tracking.coordinate.map { "\($0.latitude)|\($0.longitude)" } ?? "") { _ in
             recenterIfNeeded()
         }
         .onChange(of: settings.trackingEnabled) { enabled in
-            tracking.startLiveTracking(enabled: enabled)
+            tracking.startLiveTracking(enabled: enabled, allowBackground: settings.backgroundXPEnabled)
+        }
+        .onChange(of: settings.backgroundXPEnabled) { enabled in
+            tracking.startLiveTracking(enabled: settings.trackingEnabled, allowBackground: enabled)
         }
     }
 

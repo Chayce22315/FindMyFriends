@@ -19,9 +19,13 @@ targets:
       - sdk: MapKit.framework
       - sdk: CoreLocation.framework
       - sdk: MusicKit.framework
+      - sdk: MediaPlayer.framework
+      - sdk: ActivityKit.framework
+      - target: FindMyFriendsWidget
 
     sources:
       - path: lib/App
+      - path: lib/Shared
 
     settings:
       base:
@@ -29,6 +33,25 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.pixelatedstudios.findmyfriends
         SWIFT_VERSION: 5.0
         INFOPLIST_FILE: Info.plist
+
+  FindMyFriendsWidget:
+    type: app-extension
+    platform: iOS
+
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: ActivityKit.framework
+
+    sources:
+      - path: lib/Widget
+      - path: lib/Shared
+
+    settings:
+      base:
+        PRODUCT_NAME: FindMyFriendsWidget
+        PRODUCT_BUNDLE_IDENTIFIER: com.pixelatedstudios.findmyfriends.widget
+        SWIFT_VERSION: 5.0
+        INFOPLIST_FILE: lib/Widget/Info.plist
 
     scheme:
       build:

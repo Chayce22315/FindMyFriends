@@ -16,6 +16,8 @@
     <string>1.0</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Show your position on the map and share approximate location with your family when you choose.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Allow background distance tracking so you can earn XP even when the app is closed.</string>
     <key>NSContactsUsageDescription</key>
     <string>Find people you know so you can add them as real-life friends.</string>
     <key>NSHealthShareUsageDescription</key>
@@ -24,5 +26,18 @@
     <string>FindMyFriends does not write health data; this key is required when requesting Health access.</string>
     <key>NSAppleMusicUsageDescription</key>
     <string>Connect Apple Music to play your workout soundtrack while you move.</string>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+    </array>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Allow Find My Friends to connect to your local backend for invite links.</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
 </dict>
 </plist>

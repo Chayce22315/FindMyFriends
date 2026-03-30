@@ -9,7 +9,7 @@ final class MovementXPService: ObservableObject {
             .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { meters in
-                progress.syncXPFromDistance(meters: meters, usesMetric: Locale.current.usesMetricSystem)
+                progress.syncXPFromDistance(meters: meters, usesMetric: Locale.current.measurementSystem == .metric)
             }
             .store(in: &cancellables)
     }

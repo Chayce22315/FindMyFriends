@@ -1,13 +1,31 @@
+import Combine
 import Foundation
 import UserNotifications
 
 final class NotificationManager: NSObject, ObservableObject {
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    private var notificationsEnabled = true
+    private var cancellables = Set<AnyCancellable>()
 
-    override init() {
+    init(settings: AppSettings? = nil) {
         super.init()
         UNUserNotificationCenter.current().delegate = self
         refreshStatus()
+        if let settings {
+            notificationsEnabled = settings.notificationsEnabled
+            settings.$notificationsEnabled
+                .receive(on: RunLoop.main)
+                .sink { [weak self] enabled in
+                    self?.notificationsEnabled = enabled
+                }
+                .store(in: &cancellables)
+        }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleLevelUp(_:)),
+            name: .didLevelUp,
+            object: nil
+        )
     }
 
     func refreshStatus() {
@@ -28,6 +46,7 @@ final class NotificationManager: NSObject, ObservableObject {
     }
 
     func scheduleLevelUp(level: Int) {
+        guard notificationsEnabled else { return }
         let content = UNMutableNotificationContent()
         content.title = "Level up!"
         content.body = "You reached level \(level). Keep moving with your crew."
@@ -39,6 +58,7 @@ final class NotificationManager: NSObject, ObservableObject {
     }
 
     func scheduleReminder(title: String, body: String, in seconds: TimeInterval = 5) {
+        guard notificationsEnabled else { return }
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
@@ -46,6 +66,11 @@ final class NotificationManager: NSObject, ObservableObject {
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request)
+    }
+
+    @objc private func handleLevelUp(_ note: Notification) {
+        guard let level = note.object as? Int else { return }
+        scheduleLevelUp(level: level)
     }
 }
 

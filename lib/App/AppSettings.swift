@@ -14,6 +14,10 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(backendBaseURL, forKey: Keys.backendBaseURL) }
     }
 
+    @Published var backgroundXPEnabled: Bool {
+        didSet { defaults.set(backgroundXPEnabled, forKey: Keys.backgroundXPEnabled) }
+    }
+
     @Published var liquidGlassEnabled: Bool {
         didSet { defaults.set(liquidGlassEnabled, forKey: Keys.liquidGlass) }
     }
@@ -26,6 +30,7 @@ final class AppSettings: ObservableObject {
         static let tracking = "fmf.settings.tracking"
         static let notifications = "fmf.settings.notifications"
         static let backendBaseURL = "fmf.settings.backendBaseURL"
+        static let backgroundXPEnabled = "fmf.settings.backgroundXPEnabled"
         static let liquidGlass = "fmf.settings.liquidGlass"
     }
 
@@ -45,6 +50,11 @@ final class AppSettings: ObservableObject {
             self.backendBaseURL = stored
         } else {
             self.backendBaseURL = Self.defaultBackendBaseURL
+        }
+        if defaults.object(forKey: Keys.backgroundXPEnabled) != nil {
+            self.backgroundXPEnabled = defaults.bool(forKey: Keys.backgroundXPEnabled)
+        } else {
+            self.backgroundXPEnabled = true
         }
         if defaults.object(forKey: Keys.liquidGlass) != nil {
             self.liquidGlassEnabled = defaults.bool(forKey: Keys.liquidGlass)

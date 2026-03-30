@@ -136,31 +136,37 @@ struct PlacesNavigatorView: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Results")
                                     .font(.headline)
-                                ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
-                                    let item = result.item
-                                    Button {
-                                        openInMaps(item)
-                                    } label: {
-                                        HStack {
-                                            VStack(alignment: .leading, spacing: 4) {
-                                                Text(item.name ?? "Place")
-                                                    .font(.subheadline.weight(.semibold))
-                                                if let title = item.placemark.title {
-                                                    Text(title)
-                                                        .font(.caption)
-                                                        .foregroundStyle(.secondary)
+                                ScrollView(.vertical, showsIndicators: true) {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
+                                            let item = result.item
+                                            Button {
+                                                openInMaps(item)
+                                            } label: {
+                                                HStack {
+                                                    VStack(alignment: .leading, spacing: 4) {
+                                                        Text(item.name ?? "Place")
+                                                            .font(.subheadline.weight(.semibold))
+                                                        if let title = item.placemark.title {
+                                                            Text(title)
+                                                                .font(.caption)
+                                                                .foregroundStyle(.secondary)
+                                                        }
+                                                    }
+                                                    Spacer()
+                                                    Label("Go", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
+                                                        .font(.caption.weight(.semibold))
                                                 }
                                             }
-                                            Spacer()
-                                            Label("Go", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
-                                                .font(.caption.weight(.semibold))
+                                            .buttonStyle(.plain)
+                                            if index < results.count - 1 {
+                                                Divider()
+                                            }
                                         }
                                     }
-                                    .buttonStyle(.plain)
-                                    if index < results.count - 1 {
-                                        Divider()
-                                    }
+                                    .padding(.vertical, 4)
                                 }
+                                .frame(maxHeight: LayoutMetrics.isLargePhone ? 240 : 200)
                             }
                         }
                         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)

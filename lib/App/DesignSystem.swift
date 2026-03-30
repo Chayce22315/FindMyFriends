@@ -4,13 +4,16 @@ import UIKit
 /// Centers content on wide phones / iPad so layouts do not feel SE-sized in the middle of the screen.
 enum LayoutMetrics {
     static var screenWidth: CGFloat { UIScreen.main.bounds.width }
-    static var isLargePhone: Bool { screenWidth >= 430 }
+    static var isLargePhone: Bool { screenWidth >= 414 }
+    static var isXLPhone: Bool { screenWidth >= 430 }
 
-    static var contentMaxWidth: CGFloat { isLargePhone ? 720 : 600 }
-    static var cardPadding: CGFloat { isLargePhone ? 24 : 20 }
-    static var sectionSpacing: CGFloat { isLargePhone ? 32 : 28 }
-    static var pageHorizontalPadding: CGFloat { isLargePhone ? 12 : 20 }
-    static var headerHorizontalPadding: CGFloat { pageHorizontalPadding + 4 }
+    static var contentMaxWidth: CGFloat { isXLPhone ? 840 : (isLargePhone ? 760 : 600) }
+    static var cardPadding: CGFloat { isXLPhone ? 28 : (isLargePhone ? 24 : 20) }
+    static var sectionSpacing: CGFloat { isXLPhone ? 36 : (isLargePhone ? 32 : 28) }
+    static var pageHorizontalPadding: CGFloat { isXLPhone ? 6 : (isLargePhone ? 12 : 20) }
+    static var headerHorizontalPadding: CGFloat { pageHorizontalPadding + (isXLPhone ? 10 : 4) }
+    static var mapCardHeight: CGFloat { isXLPhone ? 300 : (isLargePhone ? 280 : 240) }
+    static var heroCardHeight: CGFloat { isXLPhone ? 560 : (isLargePhone ? 520 : 500) }
 }
 
 struct ContentMaxWidthModifier: ViewModifier {

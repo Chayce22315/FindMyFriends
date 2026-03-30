@@ -115,7 +115,7 @@ struct FitnessDashboardView: View {
                                     }
                                     .frame(maxWidth: .infinity)
                                 }
-                                .frame(height: 500)
+                                .frame(height: LayoutMetrics.heroCardHeight)
                             }
                         }
                         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
@@ -191,6 +191,41 @@ struct FitnessDashboardView: View {
                                 Text("Status: \(music.statusLabel)")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+
+                        GlassCard {
+                            VStack(alignment: .leading, spacing: 12) {
+                                SectionHeader(title: "Music Vibes", subtitle: "Quick picks for the next session.")
+                                if music.isAuthorized, !music.recommendations.isEmpty {
+                                    ForEach(music.recommendations.prefix(2)) { track in
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "music.note")
+                                                .font(.title3)
+                                                .foregroundStyle(AppTheme.accent)
+                                                .frame(width: 28)
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(track.title)
+                                                    .font(.headline)
+                                                Text("\(track.artist) - \(track.duration)")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                            Spacer()
+                                            Text(track.hapticsAllowed ? "Haptics On" : "Haptics Off")
+                                                .font(.caption2.weight(.semibold))
+                                                .foregroundStyle(track.hapticsAllowed ? AppTheme.accentSecondary : .secondary)
+                                        }
+                                        if track.id != music.recommendations.prefix(2).last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                } else {
+                                    Text("Connect Apple Music to unlock personalized picks.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)

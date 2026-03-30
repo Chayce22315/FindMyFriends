@@ -12,29 +12,61 @@ final class TrackingService: NSObject, ObservableObject {
     private let manager = CLLocationManager()
     private var lastLocation: CLLocation?
     private var distanceDay = Calendar.current.startOfDay(for: Date())
+    private var wantsLiveTracking = false
+    private var allowBackground = false
+    private let defaults = UserDefaults.standard
+    private let distanceKey = "fmf.tracking.distanceMetersToday"
+    private let distanceDayKey = "fmf.tracking.distanceDay"
 
     override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.activityType = .fitness
+        manager.distanceFilter = 8
         authorizationStatus = manager.authorizationStatus
+        loadDistanceCache()
     }
 
     func requestWhenInUse() {
         manager.requestWhenInUseAuthorization()
     }
 
-    func startLiveTracking(enabled: Bool) {
+    func requestAlways() {
+        manager.requestAlwaysAuthorization()
+    }
+
+    func startLiveTracking(enabled: Bool, allowBackground: Bool = false) {
+        wantsLiveTracking = enabled
+        self.allowBackground = allowBackground
+
         guard enabled else {
             manager.stopUpdatingLocation()
+            manager.stopMonitoringSignificantLocationChanges()
             isLive = false
             return
         }
-        guard authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse else {
+
+        if allowBackground {
+            manager.allowsBackgroundLocationUpdates = true
+            manager.pausesLocationUpdatesAutomatically = false
+            requestAlways()
+        } else {
+            manager.allowsBackgroundLocationUpdates = false
+            manager.pausesLocationUpdatesAutomatically = true
             requestWhenInUse()
-            return
         }
+
+        startIfAuthorized()
+    }
+
+    private func startIfAuthorized() {
+        guard wantsLiveTracking else { return }
+        guard authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse else { return }
         manager.startUpdatingLocation()
+        if allowBackground {
+            manager.startMonitoringSignificantLocationChanges()
+        }
         isLive = true
     }
 
@@ -90,6 +122,7 @@ enum TravelMode: String {
 extension TrackingService: CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
+        startIfAuthorized()
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -109,6 +142,7 @@ extension TrackingService: CLLocationManagerDelegate {
             distanceDay = startOfDay
             distanceMetersToday = 0
             lastLocation = location
+            persistDistance()
             return
         }
 
@@ -122,6 +156,21 @@ extension TrackingService: CLLocationManagerDelegate {
             distanceMetersToday += delta
         }
         lastLocation = location
+        persistDistance()
+    }
+
+    private func persistDistance() {
+        defaults.set(distanceMetersToday, forKey: distanceKey)
+        defaults.set(distanceDay, forKey: distanceDayKey)
+    }
+
+    private func loadDistanceCache() {
+        guard let storedDay = defaults.object(forKey: distanceDayKey) as? Date else { return }
+        let today = Calendar.current.startOfDay(for: Date())
+        if storedDay == today {
+            distanceDay = storedDay
+            distanceMetersToday = defaults.double(forKey: distanceKey)
+        }
     }
 
     private func updateTravelMode(with location: CLLocation) {

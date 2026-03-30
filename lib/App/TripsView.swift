@@ -118,7 +118,7 @@ struct TripsView: View {
                         }
                     }
                 }
-                .frame(height: 240)
+                .frame(height: LayoutMetrics.mapCardHeight)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             } else {
                 Text("No trips yet")

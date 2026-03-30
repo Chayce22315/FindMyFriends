@@ -6,6 +6,8 @@ struct ProfileProgressView: View {
     @EnvironmentObject private var notifications: NotificationManager
     @EnvironmentObject private var tracking: TrackingService
     @EnvironmentObject private var session: AppSession
+    @EnvironmentObject private var music: MusicService
+    @EnvironmentObject private var liveActivity: LiveActivityManager
 
     var body: some View {
         NavigationStack {
@@ -101,11 +103,20 @@ struct ProfileProgressView: View {
                                 }
                                 .tint(AppTheme.accent)
                                 .onChange(of: settings.trackingEnabled) { enabled in
-                                    if enabled {
-                                        tracking.requestWhenInUse()
-                                    }
-                                    tracking.startLiveTracking(enabled: enabled)
+                                    tracking.startLiveTracking(enabled: enabled, allowBackground: settings.backgroundXPEnabled)
                                 }
+
+                                Toggle(isOn: $settings.backgroundXPEnabled) {
+                                    Label("Background XP tracking", systemImage: "figure.walk.circle")
+                                        .font(.body.weight(.medium))
+                                }
+                                .tint(AppTheme.accent)
+                                .onChange(of: settings.backgroundXPEnabled) { enabled in
+                                    tracking.startLiveTracking(enabled: settings.trackingEnabled, allowBackground: enabled)
+                                }
+                                Text("Track miles in the background to earn XP even when the app is closed.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
@@ -162,6 +173,42 @@ struct ProfileProgressView: View {
                                 }
                                 .tint(AppTheme.accent)
                                 Text("Adds glossy highlights and a fluid look across cards.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+
+                        GlassCard {
+                            VStack(alignment: .leading, spacing: 16) {
+                                SectionHeader(title: "Dynamic Island", subtitle: "Live Activities for movement status.")
+                                HStack(spacing: 12) {
+                                    Image(systemName: liveActivity.isRunning ? "dot.radiowaves.left.and.right" : "moon.zzz")
+                                        .font(.title3)
+                                        .foregroundStyle(liveActivity.isRunning ? AppTheme.accent : .secondary)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(liveActivity.isRunning ? "Live Activity running" : "Live Activity idle")
+                                            .font(.headline)
+                                        Text(liveActivity.statusLabel)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                }
+
+                                if liveActivity.isRunning {
+                                    Button {
+                                        Task { await liveActivity.end() }
+                                    } label: {
+                                        Label("End Live Activity", systemImage: "stop.circle")
+                                            .font(.body.weight(.semibold))
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.large)
+                                }
+
+                                Text("Starts automatically when Live location is on.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
@@ -231,6 +278,17 @@ struct ProfileProgressView: View {
                                     MoreLinkRow(icon: "sparkles", title: "XP Details", subtitle: "Level and reward math.")
                                 }
                                 .buttonStyle(.plain)
+
+                                if music.isAuthorized {
+                                    Divider()
+
+                                    NavigationLink {
+                                        MusicInsightsView()
+                                    } label: {
+                                        MoreLinkRow(icon: "music.note.list", title: "Music Insights", subtitle: "Recently played and recommendations.")
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
                         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
@@ -268,16 +326,9 @@ struct ProfileProgressView: View {
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
                 notifications.refreshStatus()
+                music.refreshStatus()
                 if settings.trackingEnabled {
-                    tracking.requestWhenInUse()
-                    tracking.startLiveTracking(enabled: true)
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .didLevelUp)) { note in
-                guard settings.notificationsEnabled else { return }
-                guard notifications.authorizationStatus == .authorized else { return }
-                if let level = note.object as? Int {
-                    notifications.scheduleLevelUp(level: level)
+                    tracking.startLiveTracking(enabled: true, allowBackground: settings.backgroundXPEnabled)
                 }
             }
         }
