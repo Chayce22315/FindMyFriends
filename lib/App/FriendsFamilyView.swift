@@ -53,11 +53,7 @@ struct FriendsFamilyView: View {
             .sheet(isPresented: $showCreateFamily) {
                 NavigationStack {
                     Form {
-                        Section {
-                            TextField("e.g. The Riveras", text: $familyName)
-                        } header: {
-                            Text("Name your family")
-                        }
+                        TextField("Name your family", text: $familyName, prompt: Text("e.g. The Riveras"))
                     }
                     .navigationTitle("Create family")
                     .toolbar {
@@ -80,12 +76,8 @@ struct FriendsFamilyView: View {
             .sheet(isPresented: $showJoinFamily) {
                 NavigationStack {
                     Form {
-                        Section {
-                            TextField("ABC123", text: $joinCode)
-                                .textInputAutocapitalization(.characters)
-                        } header: {
-                            Text("Invite code")
-                        }
+                        TextField("Invite code", text: $joinCode, prompt: Text("ABC123"))
+                            .textInputAutocapitalization(.characters)
                     }
                     .navigationTitle("Join family")
                     .toolbar {
@@ -151,125 +143,165 @@ struct FriendsFamilyView: View {
     }
 
     private var realLifeFriends: some View {
-        List {
-            if contacts.authorizationStatus != .authorized {
-                Section {
-                    Button("Allow Contacts to add friends") {
-                        contacts.requestAccess()
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 20) {
+                if contacts.authorizationStatus != .authorized {
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Button("Allow Contacts to add friends") {
+                                contacts.requestAccess()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(AppTheme.accent)
+                            Text("We only read names to help you add people you know — nothing is uploaded without your action.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                } footer: {
-                    Text("We only read names to help you add people you know — nothing is uploaded without your action.")
+                    .padding(.horizontal)
                 }
-            }
 
-            if !contacts.contacts.isEmpty && contacts.authorizationStatus == .authorized {
-                Section {
-                    ForEach(Array(contacts.contacts.prefix(40))) { pick in
-                        Button {
-                            addFriend(from: pick)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(pick.name)
+                if !contactPicksPreview.isEmpty && contacts.authorizationStatus == .authorized {
+                    listSectionTitle("From contacts")
+                    GlassCard {
+                        VStack(spacing: 0) {
+                            ForEach(contactPicksPreview) { pick in
+                                Button {
+                                    addFriend(from: pick)
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading) {
+                                            Text(pick.name)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "plus.circle.fill")
+                                            .foregroundStyle(AppTheme.accent)
+                                    }
+                                    .contentShape(Rectangle())
                                 }
-                                Spacer()
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundStyle(AppTheme.accent)
+                                .buttonStyle(.plain)
+                                if pick.id != contactPicksPreview.last?.id {
+                                    Divider()
+                                }
                             }
                         }
                     }
-                } header: {
-                    Text("From contacts")
+                    .padding(.horizontal)
                 }
-            }
 
-            Section {
-                if session.friends.isEmpty {
-                    Text("No friends yet — tap a contact or invite a family member.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(session.friends) { friend in
-                        HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(friend.name)
-                                    .font(.headline)
-                                Text(friend.source.label)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button(role: .destructive) {
-                                session.removeFriend(friend)
-                            } label: {
-                                Image(systemName: "trash")
+                listSectionTitle("Your friends")
+                GlassCard {
+                    if session.friends.isEmpty {
+                        Text("No friends yet — tap a contact or invite a family member.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        VStack(spacing: 0) {
+                            ForEach(session.friends) { friend in
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(friend.name)
+                                            .font(.headline)
+                                        Text(friend.source.label)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Button(role: .destructive) {
+                                        session.removeFriend(friend)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                    }
+                                }
+                                if friend.id != session.friends.last?.id {
+                                    Divider()
+                                }
                             }
                         }
                     }
                 }
-            } header: {
-                Text("Your friends")
+                .padding(.horizontal)
             }
+            .padding(.vertical, 8)
         }
-        .scrollContentBackground(.hidden)
     }
 
     private var familySection: some View {
-        List {
-            if let family = session.family {
-                Section {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(family.name)
-                                .font(.headline)
-                            Text("Created \(family.createdAt.formatted(date: .abbreviated, time: .omitted))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 20) {
+                if let family = session.family {
+                    listSectionTitle("Your family")
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(family.name)
+                                        .font(.headline)
+                                    Text("Created \(family.createdAt.formatted(date: .abbreviated, time: .omitted))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                ShareLink(
+                                    item: URL(string: "https://findmyfriends.app/join?code=\(family.inviteCode)")!
+                                ) {
+                                    Label("Invite", systemImage: "square.and.arrow.up")
+                                }
+                                Button {
+                                    UIPasteboard.general.string = family.inviteCode
+                                } label: {
+                                    Image(systemName: "doc.on.doc")
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                            LabeledContent("Invite code") {
+                                Text(family.inviteCode)
+                                    .font(.title3.monospaced())
+                                    .weight(.semibold)
+                            }
                         }
-                        Spacer()
-                        ShareLink(
-                            item: URL(string: "https://findmyfriends.app/join?code=\(family.inviteCode)")!
-                        ) {
-                            Label("Invite", systemImage: "square.and.arrow.up")
-                        }
-                        Button {
-                            UIPasteboard.general.string = family.inviteCode
-                        } label: {
-                            Image(systemName: "doc.on.doc")
-                        }
-                        .buttonStyle(.borderless)
                     }
-                    LabeledContent("Invite code") {
-                        Text(family.inviteCode)
-                            .font(.title3.monospaced())
-                            .weight(.semibold)
-                    }
-                } header: {
-                    Text("Your family")
+                    .padding(.horizontal)
                 }
-            }
 
-            Section {
-                ForEach(session.familyMembers) { member in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(member.name)
-                            Text(member.role)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if member.isYou {
-                            Text("You")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
+                listSectionTitle("Members")
+                GlassCard {
+                    VStack(spacing: 0) {
+                        ForEach(session.familyMembers) { member in
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(member.name)
+                                    Text(member.role)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if member.isYou {
+                                    Text("You")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            if member.id != session.familyMembers.last?.id {
+                                Divider()
+                            }
                         }
                     }
                 }
-            } header: {
-                Text("Members")
+                .padding(.horizontal)
             }
+            .padding(.vertical, 8)
         }
-        .scrollContentBackground(.hidden)
+    }
+
+    private func listSectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.title3.weight(.semibold))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal)
+    }
+
+    private var contactPicksPreview: [ContactPick] {
+        Array(contacts.contacts.prefix(40))
     }
 
     private func addFriend(from pick: ContactPick) {
