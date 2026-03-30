@@ -67,7 +67,7 @@ struct SocialFeedView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(checkIn.name)
                                             .font(.headline)
-                                        Text("\(checkIn.place) • \(checkIn.time.formatted(date: .omitted, time: .shortened))")
+                                        Text("\(checkIn.place) - \(checkIn.time.formatted(date: .omitted, time: .shortened))")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }

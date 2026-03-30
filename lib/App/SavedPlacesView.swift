@@ -44,7 +44,7 @@ struct SavedPlacesView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(place.name)
                                             .font(.headline)
-                                        Text("\(place.category) • \(place.note)")
+                                        Text("\(place.category) - \(place.note)")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }

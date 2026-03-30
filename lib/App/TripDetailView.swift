@@ -86,7 +86,7 @@ struct TripDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(trip.title)
                 .font(.largeTitle.weight(.bold))
-            Text("\(trip.date.formatted(date: .abbreviated, time: .shortened)) • \(trip.mode.label)")
+            Text("\(trip.date.formatted(date: .abbreviated, time: .shortened)) - \(trip.mode.label)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }

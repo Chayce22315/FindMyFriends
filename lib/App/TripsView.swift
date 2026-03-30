@@ -53,7 +53,7 @@ struct TripsView: View {
                                             VStack(alignment: .leading, spacing: 4) {
                                                 Text(trip.title)
                                                     .font(.headline)
-                                                Text("\(trip.distanceLabel) • \(trip.summary)")
+                                                Text("\(trip.distanceLabel) - \(trip.summary)")
                                                     .font(.caption)
                                                     .foregroundStyle(.secondary)
                                             }

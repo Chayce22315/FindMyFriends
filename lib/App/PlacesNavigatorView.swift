@@ -256,7 +256,7 @@ private enum TransportMode: CaseIterable {
         case .walking:
             return MKLaunchOptionsDirectionsModeWalking
         case .cycling:
-            return MKLaunchOptionsDirectionsModeCycling
+            return MKLaunchOptionsDirectionsModeDefault
         case .driving, .rideshare:
             return MKLaunchOptionsDirectionsModeDriving
         case .flight:
