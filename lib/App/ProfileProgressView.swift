@@ -154,6 +154,21 @@ struct ProfileProgressView: View {
                         .padding(.horizontal)
 
                         GlassCard {
+                            VStack(alignment: .leading, spacing: 16) {
+                                SectionHeader(title: "Appearance", subtitle: "Switch on Liquid Glass styling.")
+                                Toggle(isOn: $settings.liquidGlassEnabled) {
+                                    Label("Liquid Glass", systemImage: "drop.fill")
+                                        .font(.body.weight(.medium))
+                                }
+                                .tint(AppTheme.accent)
+                                Text("Adds glossy highlights and a fluid look across cards.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal)
+
+                        GlassCard {
                             VStack(alignment: .leading, spacing: 14) {
                                 SectionHeader(title: "Tips", subtitle: "Built for modern iPhones, not a tiny widget.")
                                 tipRow(icon: "person.3.fill", text: "Family unlocks real-life friends and invites.")

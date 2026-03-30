@@ -56,26 +56,96 @@ enum AppTheme {
 struct GlassCard<Content: View>: View {
     var cornerRadius: CGFloat = 22
     @ViewBuilder var content: () -> Content
+    @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
         content()
             .padding(LayoutMetrics.cardPadding)
             .background {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.35), .white.opacity(0.08)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    }
-                    .shadow(color: .black.opacity(0.25), radius: 20, y: 10)
+                if settings.liquidGlassEnabled {
+                    LiquidGlassSurface(cornerRadius: cornerRadius)
+                } else {
+                    DefaultGlassSurface(cornerRadius: cornerRadius)
+                }
             }
+    }
+}
+
+private struct DefaultGlassSurface: View {
+    var cornerRadius: CGFloat
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.white.opacity(0.35), .white.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            }
+            .shadow(color: .black.opacity(0.25), radius: 20, y: 10)
+    }
+}
+
+private struct LiquidGlassSurface: View {
+    var cornerRadius: CGFloat
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.28),
+                                Color.white.opacity(0.08),
+                                Color.white.opacity(0.16),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .blendMode(.screen)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.55),
+                                Color.white.opacity(0.12),
+                                AppTheme.accent.opacity(0.35),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            }
+            .background {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                Color.white.opacity(0.22),
+                                Color.white.opacity(0.06),
+                                Color.clear,
+                            ],
+                            center: .topLeading,
+                            startRadius: 0,
+                            endRadius: 220
+                        )
+                    )
+                    .blur(radius: 12)
+            }
+            .shadow(color: .black.opacity(0.28), radius: 26, y: 12)
+            .shadow(color: AppTheme.accent.opacity(0.15), radius: 18, y: 6)
     }
 }
 

@@ -14,6 +14,10 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(backendBaseURL, forKey: Keys.backendBaseURL) }
     }
 
+    @Published var liquidGlassEnabled: Bool {
+        didSet { defaults.set(liquidGlassEnabled, forKey: Keys.liquidGlass) }
+    }
+
     private let defaults: UserDefaults
 
     static let defaultBackendBaseURL = "http://localhost:4000"
@@ -22,6 +26,7 @@ final class AppSettings: ObservableObject {
         static let tracking = "fmf.settings.tracking"
         static let notifications = "fmf.settings.notifications"
         static let backendBaseURL = "fmf.settings.backendBaseURL"
+        static let liquidGlass = "fmf.settings.liquidGlass"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -40,6 +45,11 @@ final class AppSettings: ObservableObject {
             self.backendBaseURL = stored
         } else {
             self.backendBaseURL = Self.defaultBackendBaseURL
+        }
+        if defaults.object(forKey: Keys.liquidGlass) != nil {
+            self.liquidGlassEnabled = defaults.bool(forKey: Keys.liquidGlass)
+        } else {
+            self.liquidGlassEnabled = true
         }
     }
 }
