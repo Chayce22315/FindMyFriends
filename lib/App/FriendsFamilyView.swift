@@ -53,8 +53,10 @@ struct FriendsFamilyView: View {
             .sheet(isPresented: $showCreateFamily) {
                 NavigationStack {
                     Form {
-                        Section("Name your family") {
+                        Section {
                             TextField("e.g. The Riveras", text: $familyName)
+                        } header: {
+                            Text("Name your family")
                         }
                     }
                     .navigationTitle("Create family")
@@ -78,9 +80,11 @@ struct FriendsFamilyView: View {
             .sheet(isPresented: $showJoinFamily) {
                 NavigationStack {
                     Form {
-                        Section("Invite code") {
+                        Section {
                             TextField("ABC123", text: $joinCode)
                                 .textInputAutocapitalization(.characters)
+                        } header: {
+                            Text("Invite code")
                         }
                     }
                     .navigationTitle("Join family")
@@ -159,7 +163,7 @@ struct FriendsFamilyView: View {
             }
 
             if !contacts.contacts.isEmpty && contacts.authorizationStatus == .authorized {
-                Section("From contacts") {
+                Section {
                     ForEach(Array(contacts.contacts.prefix(40))) { pick in
                         Button {
                             addFriend(from: pick)
@@ -174,10 +178,12 @@ struct FriendsFamilyView: View {
                             }
                         }
                     }
+                } header: {
+                    Text("From contacts")
                 }
             }
 
-            Section("Your friends") {
+            Section {
                 if session.friends.isEmpty {
                     Text("No friends yet — tap a contact or invite a family member.")
                         .foregroundStyle(.secondary)
@@ -200,6 +206,8 @@ struct FriendsFamilyView: View {
                         }
                     }
                 }
+            } header: {
+                Text("Your friends")
             }
         }
         .scrollContentBackground(.hidden)
@@ -208,7 +216,7 @@ struct FriendsFamilyView: View {
     private var familySection: some View {
         List {
             if let family = session.family {
-                Section("Your family") {
+                Section {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(family.name)
@@ -235,10 +243,12 @@ struct FriendsFamilyView: View {
                             .font(.title3.monospaced())
                             .weight(.semibold)
                     }
+                } header: {
+                    Text("Your family")
                 }
             }
 
-            Section("Members") {
+            Section {
                 ForEach(session.familyMembers) { member in
                     HStack {
                         VStack(alignment: .leading) {
@@ -255,6 +265,8 @@ struct FriendsFamilyView: View {
                         }
                     }
                 }
+            } header: {
+                Text("Members")
             }
         }
         .scrollContentBackground(.hidden)
