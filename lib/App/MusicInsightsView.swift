@@ -82,7 +82,7 @@ struct MusicInsightsView: View {
             .padding(.vertical, 6)
     }
 
-    private func insightsSection<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
+    private func insightsSection<Content: View>(title: String, subtitle: String, @ViewBuilder content: @escaping () -> Content) -> some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader(title: title, subtitle: subtitle)
