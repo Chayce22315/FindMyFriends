@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           ARCHIVE="${{ github.workspace }}/build/App.xcarchive"
-          APP="${ARCHIVE}/Products/Applications/App.app"
+          APP="${ARCHIVE}/Products/Applications/FindMyFriends.app"
           OUT="${{ github.workspace }}/build"
           if [ ! -d "$APP" ]; then
             echo "Expected app bundle not found at: $APP"
