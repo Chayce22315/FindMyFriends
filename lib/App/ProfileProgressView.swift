@@ -5,6 +5,7 @@ struct ProfileProgressView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var notifications: NotificationManager
     @EnvironmentObject private var tracking: TrackingService
+    @EnvironmentObject private var session: AppSession
 
     var body: some View {
         NavigationStack {
@@ -13,17 +14,28 @@ struct ProfileProgressView: View {
                     .ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: LayoutMetrics.sectionSpacing) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Profile")
+                                .font(.largeTitle.weight(.bold))
+                            Text("Level, privacy, and how you show up to your circle.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, LayoutMetrics.cardPadding + 4)
+
                         GlassCard {
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 6) {
+                            VStack(alignment: .leading, spacing: 20) {
+                                HStack(alignment: .center, spacing: 20) {
+                                    VStack(alignment: .leading, spacing: 8) {
                                         Text("Level \(progress.level)")
-                                            .font(.largeTitle.weight(.bold))
-                                        Text("\(progress.xp) XP")
+                                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                                        Text("\(progress.xp) XP total")
+                                            .font(.title3)
                                             .foregroundStyle(.secondary)
                                     }
-                                    Spacer()
+                                    Spacer(minLength: 12)
                                     ZStack {
                                         Circle()
                                             .fill(
@@ -33,9 +45,9 @@ struct ProfileProgressView: View {
                                                     endPoint: .bottomTrailing
                                                 )
                                             )
-                                            .frame(width: 72, height: 72)
+                                            .frame(width: 96, height: 96)
                                         Text("\(progress.level)")
-                                            .font(.title.weight(.heavy))
+                                            .font(.system(size: 40, weight: .heavy, design: .rounded))
                                             .foregroundStyle(.white)
                                     }
                                 }
@@ -47,18 +59,34 @@ struct ProfileProgressView: View {
                                         Double(progress.xpIntoLevel) / Double(max(progress.xpForNextLevel, 1))
                                     )
                                 )
-                                VStack(alignment: .leading, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 10) {
                                     HStack {
                                         Text("Next level")
-                                            .font(.caption.weight(.semibold))
+                                            .font(.subheadline.weight(.semibold))
                                             .foregroundStyle(.secondary)
                                         Spacer()
                                         Text("\(progress.xpIntoLevel) / \(progress.xpForNextLevel) XP")
-                                            .font(.caption.monospacedDigit())
+                                            .font(.subheadline.monospacedDigit().weight(.medium))
                                             .foregroundStyle(.secondary)
                                     }
                                     ProgressView(value: p)
+                                        .scaleEffect(x: 1, y: 1.35, anchor: .center)
                                         .tint(AppTheme.accent)
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+
+                        GlassCard {
+                            VStack(alignment: .leading, spacing: 14) {
+                                SectionHeader(title: "Highlights", subtitle: "Quick stats from your circle.")
+                                HStack(spacing: 12) {
+                                    highlightTile(icon: "person.2.fill", title: "Friends", value: "\(session.friends.count)")
+                                    highlightTile(icon: "figure.2.and.child.holdinghands", title: "Family", value: session.hasFamily ? "On" : "Off")
+                                }
+                                HStack(spacing: 12) {
+                                    highlightTile(icon: "location.fill", title: "Live map", value: settings.trackingEnabled ? "On" : "Paused")
+                                    highlightTile(icon: "heart.fill", title: "Health", value: "Move tab")
                                 }
                             }
                         }
@@ -69,6 +97,7 @@ struct ProfileProgressView: View {
                                 SectionHeader(title: "Tracking", subtitle: "Share your location on the map with your family.")
                                 Toggle(isOn: $settings.trackingEnabled) {
                                     Label("Live location", systemImage: "location.fill")
+                                        .font(.body.weight(.medium))
                                 }
                                 .tint(AppTheme.accent)
                                 .onChange(of: settings.trackingEnabled) { enabled in
@@ -86,6 +115,7 @@ struct ProfileProgressView: View {
                                 SectionHeader(title: "Notifications", subtitle: "Level-ups and gentle nudges.")
                                 Toggle(isOn: $settings.notificationsEnabled) {
                                     Label("Alerts & level-ups", systemImage: "bell.badge.fill")
+                                        .font(.body.weight(.medium))
                                 }
                                 .tint(AppTheme.accent)
 
@@ -93,29 +123,46 @@ struct ProfileProgressView: View {
                                     notifications.requestPermission()
                                 } label: {
                                     Label("Manage notification permission", systemImage: "gear")
+                                        .font(.body.weight(.semibold))
                                         .frame(maxWidth: .infinity)
                                 }
                                 .buttonStyle(.bordered)
+                                .controlSize(.large)
 
                                 Text(statusText)
-                                    .font(.caption)
+                                    .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
                         }
                         .padding(.horizontal)
 
                         GlassCard {
-                            VStack(alignment: .leading, spacing: 8) {
-                                SectionHeader(title: "Tips", subtitle: "Modern, private, and built for real life.")
-                                Label("Family is required for real-life friends", systemImage: "person.3.fill")
-                                Label("Maps + tracking respect your toggles", systemImage: "map.fill")
-                                Label("XP grows with your steps (Health)", systemImage: "figure.walk")
+                            VStack(alignment: .leading, spacing: 14) {
+                                SectionHeader(title: "Tips", subtitle: "Built for modern iPhones — not a tiny widget.")
+                                tipRow(icon: "person.3.fill", text: "Family unlocks real-life friends and invites.")
+                                tipRow(icon: "map.fill", text: "Maps and tracking follow your toggles here.")
+                                tipRow(icon: "figure.walk", text: "XP grows when you move — see Move for rings.")
+                                tipRow(icon: "lock.shield.fill", text: "Contacts are only used when you tap to add.")
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .padding(.horizontal)
+
+                        VStack(spacing: 6) {
+                            Text("Find My Friends")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+                                Text("Version \(version)")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 8)
                     }
-                    .padding(.vertical, 24)
+                    .padding(.vertical, 28)
+                    .contentMaxWidth()
                 }
             }
             .navigationTitle("You")
@@ -135,6 +182,30 @@ struct ProfileProgressView: View {
                 }
             }
         }
+    }
+
+    private func highlightTile(icon: String, title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: icon)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title3.weight(.bold))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func tipRow(icon: String, text: String) -> some View {
+        Label {
+            Text(text)
+                .font(.subheadline)
+        } icon: {
+            Image(systemName: icon)
+                .foregroundStyle(AppTheme.accentSecondary)
+        }
+        .labelStyle(.titleAndIcon)
     }
 
     private var statusText: String {

@@ -3,28 +3,33 @@ import SwiftUI
 struct ActivityRingView: View {
     var stepProgress: CGFloat
     var calorieProgress: CGFloat
-    var lineWidthOuter: CGFloat = 22
-    var lineWidthInner: CGFloat = 16
+    /// 1.0 = base size (~240pt); scales up on larger widths.
+    var scale: CGFloat = 1.0
+
+    private var lineWidthOuter: CGFloat { 22 * scale }
+    private var lineWidthInner: CGFloat { 16 * scale }
+    private var baseDiameter: CGFloat { 220 * scale }
 
     var body: some View {
+        let innerDiameter = baseDiameter - (lineWidthOuter + 10 * scale) * 2
         ZStack {
-            RingTrack(diameter: 220, lineWidth: lineWidthOuter)
-            RingTrack(diameter: 220 - (lineWidthOuter + 10) * 2, lineWidth: lineWidthInner)
+            RingTrack(diameter: baseDiameter, lineWidth: lineWidthOuter)
+            RingTrack(diameter: innerDiameter, lineWidth: lineWidthInner)
 
             RingProgress(
                 progress: min(1, max(0, stepProgress)),
-                diameter: 220,
+                diameter: baseDiameter,
                 lineWidth: lineWidthOuter,
                 gradient: [AppTheme.accent, AppTheme.glow]
             )
             RingProgress(
                 progress: min(1, max(0, calorieProgress)),
-                diameter: 220 - (lineWidthOuter + 10) * 2,
+                diameter: innerDiameter,
                 lineWidth: lineWidthInner,
                 gradient: [AppTheme.accentSecondary, Color(red: 0.2, green: 0.85, blue: 0.75)]
             )
         }
-        .frame(width: 240, height: 240)
+        .frame(width: 240 * scale, height: 240 * scale)
     }
 }
 

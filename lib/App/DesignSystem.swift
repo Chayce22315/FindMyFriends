@@ -1,6 +1,29 @@
 import SwiftUI
 import UIKit
 
+/// Centers content on wide phones / iPad so layouts don’t feel “SE-sized” in the middle of the screen.
+enum LayoutMetrics {
+    static let contentMaxWidth: CGFloat = 600
+    static let cardPadding: CGFloat = 20
+    static let sectionSpacing: CGFloat = 28
+}
+
+struct ContentMaxWidthModifier: ViewModifier {
+    var maxWidth: CGFloat = LayoutMetrics.contentMaxWidth
+
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: maxWidth)
+            .frame(maxWidth: .infinity)
+    }
+}
+
+extension View {
+    func contentMaxWidth(_ maxWidth: CGFloat = LayoutMetrics.contentMaxWidth) -> some View {
+        modifier(ContentMaxWidthModifier(maxWidth: maxWidth))
+    }
+}
+
 enum AppTheme {
     static let accent = Color(red: 0.35, green: 0.55, blue: 1.0)
     static let accentSecondary = Color(red: 0.45, green: 0.85, blue: 0.95)
@@ -33,7 +56,7 @@ struct GlassCard<Content: View>: View {
 
     var body: some View {
         content()
-            .padding(16)
+            .padding(LayoutMetrics.cardPadding)
             .background {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.ultraThinMaterial)
@@ -56,11 +79,12 @@ struct GlassCard<Content: View>: View {
 struct SectionHeader: View {
     let title: String
     var subtitle: String?
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.title2.weight(.semibold))
+                .font(sizeClass == .regular ? .title.weight(.semibold) : .title2.weight(.semibold))
                 .foregroundStyle(.primary)
             if let subtitle {
                 Text(subtitle)

@@ -56,11 +56,11 @@ struct MapExploreView: View {
                 MapAnnotation(coordinate: pin.coordinate) {
                     VStack(spacing: 4) {
                         Image(systemName: pin.isMe ? "location.fill" : "mappin.circle.fill")
-                            .font(.title2)
+                            .font(.title)
                             .foregroundStyle(pin.tint)
                             .shadow(radius: 4)
                         Text(pin.title)
-                            .font(.caption.weight(.semibold))
+                            .font(.subheadline.weight(.semibold))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(.ultraThinMaterial, in: Capsule())
@@ -71,23 +71,34 @@ struct MapExploreView: View {
 
             VStack(spacing: 12) {
                 GlassCard {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("Live map")
-                                .font(.headline)
+                                .font(.title2.weight(.bold))
                             Text(trackingStatusLabel)
-                                .font(.caption)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        Spacer()
+                        Spacer(minLength: 12)
                         LiveIndicator(isLive: tracking.isLive && settings.trackingEnabled)
                     }
                 }
                 .padding(.horizontal)
 
                 Spacer()
+
+                GlassCard {
+                    HStack(spacing: 20) {
+                        MapFooterStat(title: "People on map", value: "\(pins.count)", icon: "mappin.and.ellipse")
+                        MapFooterStat(title: "Friends saved", value: "\(session.friends.count)", icon: "person.2.fill")
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 12)
             }
-            .padding(.top, 8)
+            .padding(.top, 12)
+            .contentMaxWidth()
         }
         .onAppear {
             tracking.requestWhenInUse()
@@ -128,16 +139,40 @@ private struct LiveIndicator: View {
     var isLive: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Circle()
                 .fill(isLive ? Color.green : Color.gray.opacity(0.6))
-                .frame(width: 8, height: 8)
+                .frame(width: 10, height: 10)
             Text(isLive ? "Live" : "Idle")
-                .font(.caption.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(Color.white.opacity(0.08), in: Capsule())
+    }
+}
+
+private struct MapFooterStat: View {
+    let title: String
+    let value: String
+    let icon: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(AppTheme.accent)
+                .frame(width: 36)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.title2.weight(.bold))
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

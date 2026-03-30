@@ -26,7 +26,8 @@ struct FriendsFamilyView: View {
                             Text("Family").tag(1)
                         }
                         .pickerStyle(.segmented)
-                        .padding()
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
 
                         if segment == 0 {
                             realLifeFriends
@@ -106,39 +107,56 @@ struct FriendsFamilyView: View {
 
     private var familyGate: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 24) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Circle")
+                        .font(.largeTitle.weight(.bold))
+                    Text("Families, invites, and people you know — laid out for full-width phones.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
                 GlassCard {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 14) {
                         Label("Families unlock everything", systemImage: "figure.2.and.child.holdinghands")
-                            .font(.title3.weight(.semibold))
+                            .font(.title2.weight(.semibold))
                         Text("Create or join a family to add real-life friends, share location, and keep your circle in sync.")
-                            .font(.subheadline)
+                            .font(.body)
                             .foregroundStyle(.secondary)
                     }
                 }
                 .padding(.horizontal)
 
-                VStack(spacing: 12) {
+                VStack(spacing: 14) {
                     Button {
                         showCreateFamily = true
                     } label: {
                         Label("Create a family", systemImage: "plus.circle.fill")
+                            .font(.body.weight(.semibold))
                             .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
                     }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                     .tint(AppTheme.accent)
 
                     Button {
                         showJoinFamily = true
                     } label: {
                         Label("Join with invite code", systemImage: "arrow.right.circle.fill")
+                            .font(.body.weight(.semibold))
                             .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
                     }
                     .buttonStyle(.bordered)
+                    .controlSize(.large)
                 }
                 .padding(.horizontal)
             }
-            .padding(.top, 24)
+            .padding(.top, 16)
+            .padding(.bottom, 32)
+            .contentMaxWidth()
         }
     }
 
@@ -221,7 +239,8 @@ struct FriendsFamilyView: View {
                 }
                 .padding(.horizontal)
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, 12)
+            .contentMaxWidth()
         }
     }
 
@@ -289,13 +308,14 @@ struct FriendsFamilyView: View {
                 }
                 .padding(.horizontal)
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, 12)
+            .contentMaxWidth()
         }
     }
 
     private func listSectionTitle(_ title: String) -> some View {
         Text(title)
-            .font(.title3.weight(.semibold))
+            .font(.title2.weight(.bold))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
     }
