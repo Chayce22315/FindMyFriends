@@ -3,8 +3,10 @@ import SwiftUI
 struct FitnessDashboardView: View {
     @EnvironmentObject private var health: ActivityHealthService
     @EnvironmentObject private var progress: UserProgressStore
+    @EnvironmentObject private var music: MusicService
 
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
 
     private var approxDistanceKm: Double {
         Double(health.stepsToday) * 0.000762
@@ -16,6 +18,18 @@ struct FitnessDashboardView: View {
 
     private var caloriePercent: CGFloat {
         CGFloat(health.activeCalories / max(health.activeCalorieGoal, 1))
+    }
+
+    private var stepsValue: String {
+        health.isAuthorized ? "\(health.stepsToday)" : "--"
+    }
+
+    private var activeCaloriesValue: String {
+        health.isAuthorized ? String(format: "%.0f", health.activeCalories) : "--"
+    }
+
+    private var distanceValue: String {
+        health.isAuthorized ? String(format: "%.1f", approxDistanceKm) : "--"
     }
 
     var body: some View {
@@ -36,7 +50,7 @@ struct FitnessDashboardView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
 
                                 GeometryReader { geo in
-                                    let s = min(1.48, max(1.05, geo.size.width / 260))
+                                    let s = min(1.7, max(1.15, geo.size.width / 235))
                                     let wide = geo.size.width > 400
                                     VStack(spacing: 20) {
                                         ActivityRingView(
@@ -48,19 +62,19 @@ struct FitnessDashboardView: View {
                                             HStack(spacing: 24) {
                                                 stat(
                                                     title: "Steps",
-                                                    value: "\(health.stepsToday)",
+                                                    value: stepsValue,
                                                     caption: "goal \(health.stepGoal)",
                                                     valueLarge: true
                                                 )
                                                 stat(
                                                     title: "Active",
-                                                    value: String(format: "%.0f", health.activeCalories),
+                                                    value: activeCaloriesValue,
                                                     caption: "kcal",
                                                     valueLarge: true
                                                 )
                                                 stat(
                                                     title: "~Distance",
-                                                    value: String(format: "%.1f", approxDistanceKm),
+                                                    value: distanceValue,
                                                     caption: "km",
                                                     valueLarge: true
                                                 )
@@ -69,20 +83,20 @@ struct FitnessDashboardView: View {
                                             HStack(spacing: 28) {
                                                 stat(
                                                     title: "Steps",
-                                                    value: "\(health.stepsToday)",
+                                                    value: stepsValue,
                                                     caption: "goal \(health.stepGoal)",
                                                     valueLarge: false
                                                 )
                                                 stat(
                                                     title: "Active",
-                                                    value: String(format: "%.0f", health.activeCalories),
+                                                    value: activeCaloriesValue,
                                                     caption: "kcal",
                                                     valueLarge: false
                                                 )
                                             }
                                             stat(
                                                 title: "~Distance",
-                                                value: String(format: "%.1f km", approxDistanceKm),
+                                                value: "\(distanceValue) km",
                                                 caption: "rough from steps",
                                                 valueLarge: false
                                             )
@@ -90,14 +104,14 @@ struct FitnessDashboardView: View {
                                     }
                                     .frame(maxWidth: .infinity)
                                 }
-                                .frame(height: 460)
+                                .frame(height: 500)
                             }
                         }
                         .padding(.horizontal)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 16) {
-                                SectionHeader(title: "Fitness", subtitle: "Rings close as you move — XP syncs from your steps.")
+                                SectionHeader(title: "Fitness", subtitle: "Rings close as you move, XP syncs from your steps.")
                                 Button {
                                     health.requestAccess()
                                     health.refreshToday()
@@ -119,14 +133,50 @@ struct FitnessDashboardView: View {
                                     Text("Health data is not available on this device.")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
+                                } else if !health.isAuthorized {
+                                    Text("Connect Apple Health to pull real steps and active energy.")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
                         .padding(.horizontal)
 
                         GlassCard {
+                            VStack(alignment: .leading, spacing: 16) {
+                                SectionHeader(title: "Music", subtitle: "Connect Apple Music for your move sessions.")
+                                Button {
+                                    Task {
+                                        if music.isAuthorized {
+                                            if let url = URL(string: "music://") {
+                                                openURL(url)
+                                            }
+                                        } else {
+                                            await music.requestAccess()
+                                        }
+                                    }
+                                } label: {
+                                    Label(
+                                        music.isAuthorized ? "Open Apple Music" : "Connect Apple Music",
+                                        systemImage: "music.note"
+                                    )
+                                    .font(.body.weight(.semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 4)
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.large)
+
+                                Text("Status: \(music.statusLabel)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal)
+
+                        GlassCard {
                             VStack(alignment: .leading, spacing: 14) {
-                                SectionHeader(title: "This week", subtitle: "A quick snapshot — full history lives in Health.")
+                                SectionHeader(title: "This week", subtitle: "A quick snapshot, full history lives in Health.")
                                 HStack(spacing: 12) {
                                     weekPill(icon: "flame.fill", title: "Move", value: "\(min(7, max(1, progress.level))) day streak")
                                     weekPill(icon: "figure.walk", title: "Steps", value: "Today: \(health.stepsToday)")
@@ -149,7 +199,7 @@ struct FitnessDashboardView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text("\(progress.xp) XP")
                                             .font(.title2.weight(.bold))
-                                        Text("Level \(progress.level) · keep closing rings")
+                                        Text("Level \(progress.level) - keep closing rings")
                                             .font(.subheadline)
                                             .foregroundStyle(.secondary)
                                     }
@@ -181,9 +231,9 @@ struct FitnessDashboardView: View {
             .navigationTitle("Move")
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
-                health.requestAccess()
                 health.refreshToday()
                 progress.syncXPFromSteps(health.stepsToday)
+                music.refreshStatus()
             }
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
@@ -200,7 +250,7 @@ struct FitnessDashboardView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Activity")
                 .font(.largeTitle.weight(.bold))
-            Text("Built for bigger screens — rings, stats, and weekly snapshot.")
+            Text("Built for big screens, rings, stats, and weekly snapshot.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -230,7 +280,7 @@ struct FitnessDashboardView: View {
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.system(size: valueLarge ? 32 : 26, weight: .bold, design: .rounded))
+                .font(.system(size: valueLarge ? 34 : 26, weight: .bold, design: .rounded))
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
             Text(caption)

@@ -15,6 +15,12 @@ final class ActivityHealthService: ObservableObject {
     private let store = HKHealthStore()
     private var observerQuery: HKObserverQuery?
 
+    init() {
+        if healthDataAvailable {
+            updateAuthorizationStatus()
+        }
+    }
+
     func requestAccess() {
         guard healthDataAvailable else { return }
         guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount),
@@ -22,10 +28,10 @@ final class ActivityHealthService: ObservableObject {
         else { return }
 
         let read: Set<HKObjectType> = [stepType, energyType]
-        store.requestAuthorization(toShare: [], read: read) { [weak self] ok, _ in
+        store.requestAuthorization(toShare: [], read: read) { [weak self] _, _ in
             DispatchQueue.main.async {
-                self?.isAuthorized = ok
-                if ok {
+                self?.updateAuthorizationStatus()
+                if self?.isAuthorized == true {
                     self?.registerStepObserver()
                     self?.refreshToday()
                 }
@@ -38,6 +44,11 @@ final class ActivityHealthService: ObservableObject {
         guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount),
               let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)
         else { return }
+        let authorized = store.authorizationStatus(for: stepType) == .sharingAuthorized
+        DispatchQueue.main.async { [weak self] in
+            self?.isAuthorized = authorized
+        }
+        guard authorized else { return }
 
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: Date())
@@ -70,5 +81,17 @@ final class ActivityHealthService: ObservableObject {
         }
         store.execute(query)
         observerQuery = query
+    }
+
+    private func updateAuthorizationStatus() {
+        guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
+        let status = store.authorizationStatus(for: stepType) == .sharingAuthorized
+        if Thread.isMainThread {
+            isAuthorized = status
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.isAuthorized = status
+            }
+        }
     }
 }

@@ -1,0 +1,174 @@
+const express = require("express");
+const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+
+const PORT = Number(process.env.PORT || 4000);
+const BASE_URL = normalizeBaseUrl(
+  process.env.BASE_URL || `http://localhost:${PORT}`
+);
+
+const DATA_DIR = path.join(__dirname, "data");
+const DATA_FILE = path.join(DATA_DIR, "families.json");
+
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: "256kb" }));
+
+function normalizeBaseUrl(url) {
+  if (!url) {
+    return "";
+  }
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return "";
+  }
+  const withScheme = trimmed.startsWith("http://") || trimmed.startsWith("https://")
+    ? trimmed
+    : `http://${trimmed}`;
+  return withScheme.endsWith("/") ? withScheme.slice(0, -1) : withScheme;
+}
+
+function loadStore() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(DATA_FILE)) {
+      return { families: [] };
+    }
+    const raw = fs.readFileSync(DATA_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.families)) {
+      return { families: [] };
+    }
+    return parsed;
+  } catch (error) {
+    return { families: [] };
+  }
+}
+
+function saveStore(store) {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), "utf8");
+}
+
+function generateInviteCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < 6; i += 1) {
+    out += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return out;
+}
+
+function buildInviteUrl(code) {
+  return `${BASE_URL}/invite/${code}`;
+}
+
+function normalizeInviteCode(code) {
+  return String(code || "").trim().toUpperCase();
+}
+
+function findFamilyByCode(store, code) {
+  const normalized = normalizeInviteCode(code);
+  return store.families.find((family) => family.inviteCode === normalized);
+}
+
+app.get("/health", (req, res) => {
+  res.json({ ok: true, time: new Date().toISOString() });
+});
+
+app.post("/api/families", (req, res) => {
+  const name = String(req.body?.name || "").trim();
+  if (!name) {
+    return res.status(400).json({ error: "Family name is required." });
+  }
+
+  const store = loadStore();
+  let inviteCode = generateInviteCode();
+  while (findFamilyByCode(store, inviteCode)) {
+    inviteCode = generateInviteCode();
+  }
+
+  const family = {
+    id: crypto.randomUUID(),
+    name,
+    inviteCode,
+    inviteUrl: buildInviteUrl(inviteCode),
+    createdAt: new Date().toISOString(),
+  };
+
+  store.families.push(family);
+  saveStore(store);
+
+  return res.status(201).json(family);
+});
+
+app.post("/api/families/join", (req, res) => {
+  const code = normalizeInviteCode(req.body?.code);
+  if (!code) {
+    return res.status(400).json({ error: "Invite code is required." });
+  }
+
+  const store = loadStore();
+  const family = findFamilyByCode(store, code);
+  if (!family) {
+    return res.status(404).json({ error: "Invite code not found." });
+  }
+
+  return res.json(family);
+});
+
+app.get("/api/invites/:code", (req, res) => {
+  const code = normalizeInviteCode(req.params.code);
+  const store = loadStore();
+  const family = findFamilyByCode(store, code);
+  if (!family) {
+    return res.status(404).json({ error: "Invite code not found." });
+  }
+  return res.json(family);
+});
+
+app.get("/invite/:code", (req, res) => {
+  const code = normalizeInviteCode(req.params.code);
+  const store = loadStore();
+  const family = findFamilyByCode(store, code);
+  if (!family) {
+    return res.status(404).send("Invite not found.");
+  }
+
+  res.type("html").send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Join ${family.name}</title>
+  <style>
+    body { font-family: -apple-system, Segoe UI, sans-serif; background:#0b0f1b; color:#f5f7ff; margin:0; }
+    .wrap { max-width: 520px; margin: 40px auto; padding: 24px; }
+    .card { background: #141a2b; border-radius: 20px; padding: 24px; box-shadow: 0 24px 40px rgba(0,0,0,.35); }
+    h1 { font-size: 28px; margin: 0 0 12px; }
+    p { color: #c4cbe1; line-height: 1.5; }
+    .code { font-size: 24px; letter-spacing: 4px; font-weight: 700; margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Join ${family.name}</h1>
+      <p>Open Find My Friends and use this invite code to join.</p>
+      <div class="code">${family.inviteCode}</div>
+      <p>If you already have the app open, tap Join and paste the code.</p>
+    </div>
+  </div>
+</body>
+</html>`);
+});
+
+app.listen(PORT, () => {
+  console.log(`FindMyFriends backend running on ${BASE_URL}`);
+});

@@ -1,11 +1,14 @@
 import SwiftUI
 import UIKit
 
-/// Centers content on wide phones / iPad so layouts don’t feel “SE-sized” in the middle of the screen.
+/// Centers content on wide phones / iPad so layouts do not feel SE-sized in the middle of the screen.
 enum LayoutMetrics {
-    static let contentMaxWidth: CGFloat = 600
-    static let cardPadding: CGFloat = 20
-    static let sectionSpacing: CGFloat = 28
+    static var screenWidth: CGFloat { UIScreen.main.bounds.width }
+    static var isLargePhone: Bool { screenWidth >= 430 }
+
+    static var contentMaxWidth: CGFloat { isLargePhone ? 720 : 600 }
+    static var cardPadding: CGFloat { isLargePhone ? 24 : 20 }
+    static var sectionSpacing: CGFloat { isLargePhone ? 32 : 28 }
 }
 
 struct ContentMaxWidthModifier: ViewModifier {
@@ -82,9 +85,10 @@ struct SectionHeader: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
+        let useLarge = sizeClass == .regular || LayoutMetrics.isLargePhone
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(sizeClass == .regular ? .title.weight(.semibold) : .title2.weight(.semibold))
+                .font(useLarge ? .title.weight(.semibold) : .title2.weight(.semibold))
                 .foregroundStyle(.primary)
             if let subtitle {
                 Text(subtitle)

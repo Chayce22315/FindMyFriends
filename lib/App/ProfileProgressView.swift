@@ -137,11 +137,28 @@ struct ProfileProgressView: View {
                         .padding(.horizontal)
 
                         GlassCard {
+                            VStack(alignment: .leading, spacing: 16) {
+                                SectionHeader(title: "Backend", subtitle: "Invite links and sharing run through this server.")
+                                TextField("https://your-server:4000", text: $settings.backendBaseURL)
+                                    .textInputAutocapitalization(.never)
+                                    .keyboardType(.URL)
+                                    .autocorrectionDisabled()
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 12)
+                                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                                Text("Set this to your backend URL so invite links work on real devices.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal)
+
+                        GlassCard {
                             VStack(alignment: .leading, spacing: 14) {
-                                SectionHeader(title: "Tips", subtitle: "Built for modern iPhones — not a tiny widget.")
+                                SectionHeader(title: "Tips", subtitle: "Built for modern iPhones, not a tiny widget.")
                                 tipRow(icon: "person.3.fill", text: "Family unlocks real-life friends and invites.")
                                 tipRow(icon: "map.fill", text: "Maps and tracking follow your toggles here.")
-                                tipRow(icon: "figure.walk", text: "XP grows when you move — see Move for rings.")
+                                tipRow(icon: "figure.walk", text: "XP grows when you move, see Move for rings.")
                                 tipRow(icon: "lock.shield.fill", text: "Contacts are only used when you tap to add.")
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -213,7 +230,7 @@ struct ProfileProgressView: View {
         case .authorized:
             return "Notifications are on."
         case .denied:
-            return "Notifications are off in Settings — enable them for level-up alerts."
+            return "Notifications are off in Settings, enable them for level-up alerts."
         case .notDetermined:
             return "We will ask before sending anything."
         case .provisional:

@@ -10,11 +10,18 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(notificationsEnabled, forKey: Keys.notifications) }
     }
 
+    @Published var backendBaseURL: String {
+        didSet { defaults.set(backendBaseURL, forKey: Keys.backendBaseURL) }
+    }
+
     private let defaults: UserDefaults
+
+    static let defaultBackendBaseURL = "http://localhost:4000"
 
     private enum Keys {
         static let tracking = "fmf.settings.tracking"
         static let notifications = "fmf.settings.notifications"
+        static let backendBaseURL = "fmf.settings.backendBaseURL"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -28,6 +35,11 @@ final class AppSettings: ObservableObject {
             self.notificationsEnabled = defaults.bool(forKey: Keys.notifications)
         } else {
             self.notificationsEnabled = true
+        }
+        if let stored = defaults.string(forKey: Keys.backendBaseURL), !stored.isEmpty {
+            self.backendBaseURL = stored
+        } else {
+            self.backendBaseURL = Self.defaultBackendBaseURL
         }
     }
 }

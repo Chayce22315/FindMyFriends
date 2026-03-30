@@ -4,12 +4,16 @@ import UIKit
 struct FriendsFamilyView: View {
     @EnvironmentObject private var session: AppSession
     @EnvironmentObject private var contacts: ContactsFriendService
+    @EnvironmentObject private var settings: AppSettings
 
     @State private var segment = 0
     @State private var showCreateFamily = false
     @State private var showJoinFamily = false
     @State private var familyName = ""
     @State private var joinCode = ""
+    @State private var isSubmitting = false
+    @State private var showError = false
+    @State private var errorMessage = ""
 
     var body: some View {
         NavigationStack {
@@ -55,6 +59,9 @@ struct FriendsFamilyView: View {
                 NavigationStack {
                     Form {
                         TextField("Name your family", text: $familyName, prompt: Text("e.g. The Riveras"))
+                        Text("Invite links are created by the backend at \(settings.backendBaseURL).")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                     .navigationTitle("Create family")
                     .toolbar {
@@ -63,12 +70,9 @@ struct FriendsFamilyView: View {
                         }
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Create") {
-                                let name = familyName.trimmingCharacters(in: .whitespacesAndNewlines)
-                                guard !name.isEmpty else { return }
-                                session.createFamily(named: name)
-                                familyName = ""
-                                showCreateFamily = false
+                                createFamilyRemote()
                             }
+                            .disabled(isSubmitting || familyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
                     }
                 }
@@ -79,6 +83,9 @@ struct FriendsFamilyView: View {
                     Form {
                         TextField("Invite code", text: $joinCode, prompt: Text("ABC123"))
                             .textInputAutocapitalization(.characters)
+                        Text("We will validate the invite code with your backend.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                     .navigationTitle("Join family")
                     .toolbar {
@@ -87,15 +94,18 @@ struct FriendsFamilyView: View {
                         }
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Join") {
-                                if session.joinFamily(code: joinCode) {
-                                    joinCode = ""
-                                    showJoinFamily = false
-                                }
+                                joinFamilyRemote()
                             }
+                            .disabled(isSubmitting || joinCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
                     }
                 }
                 .presentationDetents([.medium])
+            }
+            .alert("Backend error", isPresented: $showError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage)
             }
             .onAppear {
                 if contacts.authorizationStatus == .authorized {
@@ -111,7 +121,7 @@ struct FriendsFamilyView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Circle")
                         .font(.largeTitle.weight(.bold))
-                    Text("Families, invites, and people you know — laid out for full-width phones.")
+                    Text("Families, invites, and people you know, laid out for full-width phones.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -123,6 +133,9 @@ struct FriendsFamilyView: View {
                             .font(.title2.weight(.semibold))
                         Text("Create or join a family to add real-life friends, share location, and keep your circle in sync.")
                             .font(.body)
+                            .foregroundStyle(.secondary)
+                        Text("Invite links are powered by your backend so they can be shared for real.")
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -171,7 +184,7 @@ struct FriendsFamilyView: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(AppTheme.accent)
-                            Text("We only read names to help you add people you know — nothing is uploaded without your action.")
+                            Text("We only read names to help you add people you know, nothing is uploaded without your action.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -210,7 +223,7 @@ struct FriendsFamilyView: View {
                 listSectionTitle("Your friends")
                 GlassCard {
                     if session.friends.isEmpty {
-                        Text("No friends yet — tap a contact or invite a family member.")
+                        Text("No friends yet, tap a contact or invite a family member.")
                             .foregroundStyle(.secondary)
                     } else {
                         VStack(spacing: 0) {
@@ -260,9 +273,7 @@ struct FriendsFamilyView: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                ShareLink(
-                                    item: URL(string: "https://findmyfriends.app/join?code=\(family.inviteCode)")!
-                                ) {
+                                ShareLink(item: family.inviteLink(baseURL: settings.backendBaseURL)) {
                                     Label("Invite", systemImage: "square.and.arrow.up")
                                 }
                                 Button {
@@ -334,5 +345,67 @@ struct FriendsFamilyView: View {
             isFamilyMember: false
         )
         session.addFriend(friend)
+    }
+
+    private func createFamilyRemote() {
+        let name = familyName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        isSubmitting = true
+        Task {
+            do {
+                let client = try BackendClient(baseURLString: settings.backendBaseURL)
+                let remote = try await client.createFamily(name: name)
+                let group = FamilyGroup(
+                    id: remote.id,
+                    name: remote.name,
+                    inviteCode: remote.inviteCode,
+                    inviteURL: remote.inviteUrl,
+                    createdAt: remote.createdAt
+                )
+                await MainActor.run {
+                    session.setFamily(group, role: "Organizer")
+                    familyName = ""
+                    showCreateFamily = false
+                    isSubmitting = false
+                }
+            } catch {
+                await MainActor.run {
+                    isSubmitting = false
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        }
+    }
+
+    private func joinFamilyRemote() {
+        let code = joinCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !code.isEmpty else { return }
+        isSubmitting = true
+        Task {
+            do {
+                let client = try BackendClient(baseURLString: settings.backendBaseURL)
+                let remote = try await client.joinFamily(code: code)
+                let group = FamilyGroup(
+                    id: remote.id,
+                    name: remote.name,
+                    inviteCode: remote.inviteCode,
+                    inviteURL: remote.inviteUrl,
+                    createdAt: remote.createdAt
+                )
+                await MainActor.run {
+                    session.setFamily(group, role: "Member")
+                    joinCode = ""
+                    showJoinFamily = false
+                    isSubmitting = false
+                }
+            } catch {
+                await MainActor.run {
+                    isSubmitting = false
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        }
     }
 }

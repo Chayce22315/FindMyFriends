@@ -9,6 +9,7 @@ struct FindMyFriendsApp: App {
     @StateObject private var tracking = TrackingService()
     @StateObject private var contacts = ContactsFriendService()
     @StateObject private var settings = AppSettings()
+    @StateObject private var music = MusicService()
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +21,7 @@ struct FindMyFriendsApp: App {
                 .environmentObject(tracking)
                 .environmentObject(contacts)
                 .environmentObject(settings)
+                .environmentObject(music)
                 .preferredColorScheme(.dark)
         }
     }

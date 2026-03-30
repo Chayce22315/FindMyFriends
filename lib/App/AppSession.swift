@@ -38,27 +38,26 @@ final class AppSession: ObservableObject {
 
     func createFamily(named name: String) {
         let group = FamilyGroup(name: name)
-        family = group
-        persistFamily()
-        if familyMembers.isEmpty {
-            familyMembers = [
-                FamilyMember(name: "You", role: "Organizer", isYou: true),
-            ]
-            persistMembers()
-        }
+        setFamily(group, role: "Organizer")
     }
 
     func joinFamily(code: String) -> Bool {
         let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard trimmed.count >= 4 else { return false }
         let group = FamilyGroup(name: "Family \(trimmed.suffix(3))", inviteCode: trimmed)
+        setFamily(group, role: "Member")
+        return true
+    }
+
+    func setFamily(_ group: FamilyGroup, role: String) {
         family = group
         persistFamily()
         if familyMembers.isEmpty {
-            familyMembers = [FamilyMember(name: "You", role: "Member", isYou: true)]
+            familyMembers = [
+                FamilyMember(name: "You", role: role, isYou: true),
+            ]
             persistMembers()
         }
-        return true
     }
 
     func addFriend(_ friend: Friend) {
