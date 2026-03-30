@@ -256,7 +256,7 @@ struct FriendsFamilyView: View {
                             LabeledContent("Invite code") {
                                 Text(family.inviteCode)
                                     .font(.title3.monospaced())
-                                    .weight(.semibold)
+                                    .fontWeight(.semibold)
                             }
                         }
                     }
