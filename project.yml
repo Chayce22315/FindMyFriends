@@ -10,6 +10,15 @@ targets:
     type: application
     platform: iOS
 
+    entitlements:
+      path: App.entitlements
+
+    dependencies:
+      - sdk: HealthKit.framework
+      - sdk: Contacts.framework
+      - sdk: MapKit.framework
+      - sdk: CoreLocation.framework
+
     sources:
       - path: lib/App
 
