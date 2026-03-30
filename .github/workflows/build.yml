@@ -34,17 +34,29 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             archive
 
-      # export unsigned IPA
-      - name: Export IPA
+      # Package unsigned IPA without exportArchive (no Apple team / signing required)
+      - name: Package IPA from archive
         run: |
-          xcodebuild -exportArchive \
-            -archivePath ${{ github.workspace }}/build/App.xcarchive \
-            -exportPath ${{ github.workspace }}/build/App \
-            -exportOptionsPlist ./ExportOptions.plist
+          set -euo pipefail
+          ARCHIVE="${{ github.workspace }}/build/App.xcarchive"
+          APP="${ARCHIVE}/Products/Applications/App.app"
+          OUT="${{ github.workspace }}/build"
+          if [ ! -d "$APP" ]; then
+            echo "Expected app bundle not found at: $APP"
+            find "$ARCHIVE" -maxdepth 5 -type d 2>/dev/null || true
+            exit 1
+          fi
+          STAGING="$OUT/ipa-staging"
+          rm -rf "$STAGING"
+          mkdir -p "$STAGING/Payload"
+          cp -R "$APP" "$STAGING/Payload/"
+          (cd "$STAGING" && zip -r "$OUT/FindMyFriends.ipa" Payload)
+          rm -rf "$STAGING"
+          ls -la "$OUT/FindMyFriends.ipa"
 
       # upload IPA as artifact
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: FindMyFriends.ipa
-          path: ${{ github.workspace }}/build/App/*.ipa
+          path: ${{ github.workspace }}/build/FindMyFriends.ipa
