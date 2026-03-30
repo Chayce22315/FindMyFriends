@@ -9,6 +9,8 @@ enum LayoutMetrics {
     static var contentMaxWidth: CGFloat { isLargePhone ? 720 : 600 }
     static var cardPadding: CGFloat { isLargePhone ? 24 : 20 }
     static var sectionSpacing: CGFloat { isLargePhone ? 32 : 28 }
+    static var pageHorizontalPadding: CGFloat { isLargePhone ? 12 : 20 }
+    static var headerHorizontalPadding: CGFloat { pageHorizontalPadding + 4 }
 }
 
 struct ContentMaxWidthModifier: ViewModifier {

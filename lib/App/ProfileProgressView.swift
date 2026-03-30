@@ -23,7 +23,7 @@ struct ProfileProgressView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, LayoutMetrics.cardPadding + 4)
+                        .padding(.horizontal, LayoutMetrics.headerHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 20) {
@@ -75,7 +75,7 @@ struct ProfileProgressView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 14) {
@@ -90,7 +90,7 @@ struct ProfileProgressView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 16) {
@@ -108,7 +108,7 @@ struct ProfileProgressView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 16) {
@@ -134,7 +134,7 @@ struct ProfileProgressView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 16) {
@@ -151,7 +151,7 @@ struct ProfileProgressView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 16) {
@@ -166,7 +166,74 @@ struct ProfileProgressView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+
+                        GlassCard {
+                            VStack(alignment: .leading, spacing: 12) {
+                                SectionHeader(title: "More to explore", subtitle: "Extra features so the app feels fully loaded.")
+                                NavigationLink {
+                                    AchievementsView()
+                                } label: {
+                                    MoreLinkRow(icon: "trophy.fill", title: "Achievements", subtitle: "Unlock travel milestones.")
+                                }
+                                .buttonStyle(.plain)
+
+                                Divider()
+
+                                NavigationLink {
+                                    JourneysView()
+                                } label: {
+                                    MoreLinkRow(icon: "location.north.line", title: "Journeys", subtitle: "A trip history snapshot.")
+                                }
+                                .buttonStyle(.plain)
+
+                                Divider()
+
+                                NavigationLink {
+                                    SavedPlacesView(store: PlacesStore())
+                                } label: {
+                                    MoreLinkRow(icon: "bookmark.fill", title: "Saved Places", subtitle: "Collections and favorites.")
+                                }
+                                .buttonStyle(.plain)
+
+                                Divider()
+
+                                NavigationLink {
+                                    SafetyView()
+                                } label: {
+                                    MoreLinkRow(icon: "shield.fill", title: "Safety", subtitle: "Automated check-ins.")
+                                }
+                                .buttonStyle(.plain)
+
+                                Divider()
+
+                                NavigationLink {
+                                    SocialFeedView()
+                                } label: {
+                                    MoreLinkRow(icon: "person.2.wave.2", title: "Social Feed", subtitle: "Family check-ins and reactions.")
+                                }
+                                .buttonStyle(.plain)
+
+                                Divider()
+
+                                NavigationLink {
+                                    ChallengesView()
+                                } label: {
+                                    MoreLinkRow(icon: "checkmark.seal.fill", title: "Challenges", subtitle: "Badges, streaks, daily goals.")
+                                }
+                                .buttonStyle(.plain)
+
+                                Divider()
+
+                                NavigationLink {
+                                    XPDetailsView()
+                                } label: {
+                                    MoreLinkRow(icon: "sparkles", title: "XP Details", subtitle: "Level and reward math.")
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 14) {
@@ -178,7 +245,7 @@ struct ProfileProgressView: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         VStack(spacing: 6) {
                             Text("Find My Friends")

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct FitnessDashboardView: View {
     @EnvironmentObject private var health: ActivityHealthService
@@ -30,6 +31,16 @@ struct FitnessDashboardView: View {
 
     private var distanceValue: String {
         health.isAuthorized ? String(format: "%.1f", approxDistanceKm) : "--"
+    }
+
+    private var healthButtonTitle: String {
+        if !health.healthDataAvailable {
+            return "Health Unavailable"
+        }
+        if health.authorizationStatus == .sharingDenied {
+            return "Open Health Settings"
+        }
+        return health.isAuthorized ? "Refresh Health data" : "Connect Apple Health"
     }
 
     var body: some View {
@@ -107,17 +118,23 @@ struct FitnessDashboardView: View {
                                 .frame(height: 500)
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 16) {
                                 SectionHeader(title: "Fitness", subtitle: "Rings close as you move, XP syncs from your steps.")
                                 Button {
-                                    health.requestAccess()
-                                    health.refreshToday()
+                                    if health.authorizationStatus == .sharingDenied {
+                                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                                            openURL(url)
+                                        }
+                                    } else {
+                                        health.requestAccess()
+                                        health.refreshToday()
+                                    }
                                 } label: {
                                     Label(
-                                        health.isAuthorized ? "Refresh Health data" : "Connect Apple Health",
+                                        healthButtonTitle,
                                         systemImage: "heart.fill"
                                     )
                                     .font(.body.weight(.semibold))
@@ -133,6 +150,10 @@ struct FitnessDashboardView: View {
                                     Text("Health data is not available on this device.")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
+                                } else if health.authorizationStatus == .sharingDenied {
+                                    Text("Health access is off. Enable it in Settings to read steps.")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
                                 } else if !health.isAuthorized {
                                     Text("Connect Apple Health to pull real steps and active energy.")
                                         .font(.subheadline)
@@ -140,7 +161,7 @@ struct FitnessDashboardView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 16) {
@@ -172,7 +193,7 @@ struct FitnessDashboardView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 14) {
@@ -187,7 +208,7 @@ struct FitnessDashboardView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 12) {
@@ -207,7 +228,7 @@ struct FitnessDashboardView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 10) {
@@ -222,7 +243,7 @@ struct FitnessDashboardView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
                     }
                     .padding(.vertical, 28)
                     .contentMaxWidth()
@@ -255,7 +276,7 @@ struct FitnessDashboardView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, LayoutMetrics.cardPadding + 4)
+        .padding(.horizontal, LayoutMetrics.headerHorizontalPadding)
     }
 
     private func weekPill(icon: String, title: String, value: String) -> some View {

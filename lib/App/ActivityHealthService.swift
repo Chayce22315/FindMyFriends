@@ -6,6 +6,7 @@ final class ActivityHealthService: ObservableObject {
     @Published private(set) var stepsToday: Int = 0
     @Published private(set) var activeCalories: Double = 0
     @Published private(set) var isAuthorized: Bool = false
+    @Published private(set) var authorizationStatus: HKAuthorizationStatus = .notDetermined
     @Published private(set) var healthDataAvailable: Bool = HKHealthStore.isHealthDataAvailable()
 
     /// Goals for ring UI
@@ -16,8 +17,14 @@ final class ActivityHealthService: ObservableObject {
     private var observerQuery: HKObserverQuery?
 
     init() {
-        if healthDataAvailable {
-            updateAuthorizationStatus()
+        if healthDataAvailable,
+           let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) {
+            let status = store.authorizationStatus(for: stepType)
+            updateAuthorizationStatus(status)
+            if status == .sharingAuthorized {
+                registerStepObserver()
+                refreshToday()
+            }
         }
     }
 
@@ -44,11 +51,9 @@ final class ActivityHealthService: ObservableObject {
         guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount),
               let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)
         else { return }
-        let authorized = store.authorizationStatus(for: stepType) == .sharingAuthorized
-        DispatchQueue.main.async { [weak self] in
-            self?.isAuthorized = authorized
-        }
-        guard authorized else { return }
+        let status = store.authorizationStatus(for: stepType)
+        updateAuthorizationStatus(status)
+        guard status == .sharingAuthorized else { return }
 
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: Date())
@@ -85,12 +90,19 @@ final class ActivityHealthService: ObservableObject {
 
     private func updateAuthorizationStatus() {
         guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
-        let status = store.authorizationStatus(for: stepType) == .sharingAuthorized
+        let status = store.authorizationStatus(for: stepType)
+        updateAuthorizationStatus(status)
+    }
+
+    private func updateAuthorizationStatus(_ status: HKAuthorizationStatus) {
+        let authorized = status == .sharingAuthorized
         if Thread.isMainThread {
-            isAuthorized = status
+            authorizationStatus = status
+            isAuthorized = authorized
         } else {
             DispatchQueue.main.async { [weak self] in
-                self?.isAuthorized = status
+                self?.authorizationStatus = status
+                self?.isAuthorized = authorized
             }
         }
     }

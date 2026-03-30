@@ -20,6 +20,8 @@ struct MapExploreView: View {
         span: MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12)
     )
 
+    private var isLargePhone: Bool { LayoutMetrics.isLargePhone }
+
     private var pins: [MapPin] {
         var items: [MapPin] = []
         if let c = tracking.coordinate {
@@ -69,14 +71,14 @@ struct MapExploreView: View {
             }
             .ignoresSafeArea(edges: .bottom)
 
-            VStack(spacing: 12) {
+            VStack(spacing: isLargePhone ? 16 : 12) {
                 GlassCard {
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Live map")
-                                .font(.title2.weight(.bold))
+                                .font(isLargePhone ? .title.weight(.bold) : .title2.weight(.bold))
                             Text(trackingStatusLabel)
-                                .font(.subheadline)
+                                .font(isLargePhone ? .body : .subheadline)
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -84,7 +86,7 @@ struct MapExploreView: View {
                         LiveIndicator(isLive: tracking.isLive && settings.trackingEnabled)
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                 Spacer()
 
@@ -94,10 +96,10 @@ struct MapExploreView: View {
                         MapFooterStat(title: "Friends saved", value: "\(session.friends.count)", icon: "person.2.fill")
                     }
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 12)
+                .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+                .padding(.bottom, isLargePhone ? 18 : 12)
             }
-            .padding(.top, 12)
+            .padding(.top, isLargePhone ? 16 : 12)
             .contentMaxWidth()
         }
         .onAppear {
@@ -119,9 +121,9 @@ struct MapExploreView: View {
         }
         switch tracking.authorizationStatus {
         case .authorizedAlways, .authorizedWhenInUse:
-            return tracking.isLive ? "Sharing approximate location with family" : "Locating…"
+            return tracking.isLive ? "Sharing approximate location with family" : "Locating..."
         case .denied, .restricted:
-            return "Location off — enable in Settings"
+            return "Location off - enable in Settings"
         default:
             return "Location permission needed"
         }
@@ -138,17 +140,19 @@ struct MapExploreView: View {
 private struct LiveIndicator: View {
     var isLive: Bool
 
+    private var isLargePhone: Bool { LayoutMetrics.isLargePhone }
+
     var body: some View {
         HStack(spacing: 8) {
             Circle()
                 .fill(isLive ? Color.green : Color.gray.opacity(0.6))
-                .frame(width: 10, height: 10)
+                .frame(width: isLargePhone ? 12 : 10, height: isLargePhone ? 12 : 10)
             Text(isLive ? "Live" : "Idle")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, isLargePhone ? 16 : 14)
+        .padding(.vertical, isLargePhone ? 12 : 10)
         .background(Color.white.opacity(0.08), in: Capsule())
     }
 }
@@ -158,18 +162,20 @@ private struct MapFooterStat: View {
     let value: String
     let icon: String
 
+    private var isLargePhone: Bool { LayoutMetrics.isLargePhone }
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(isLargePhone ? .title : .title2)
                 .foregroundStyle(AppTheme.accent)
-                .frame(width: 36)
+                .frame(width: isLargePhone ? 40 : 36)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Text(value)
-                    .font(.title2.weight(.bold))
+                    .font(isLargePhone ? .title.weight(.bold) : .title2.weight(.bold))
             }
             Spacer(minLength: 0)
         }

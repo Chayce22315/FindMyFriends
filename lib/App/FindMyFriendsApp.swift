@@ -2,14 +2,29 @@ import SwiftUI
 
 @main
 struct FindMyFriendsApp: App {
-    @StateObject private var session = AppSession()
-    @StateObject private var progress = UserProgressStore()
-    @StateObject private var health = ActivityHealthService()
-    @StateObject private var notifications = NotificationManager()
-    @StateObject private var tracking = TrackingService()
-    @StateObject private var contacts = ContactsFriendService()
-    @StateObject private var settings = AppSettings()
-    @StateObject private var music = MusicService()
+    @StateObject private var session: AppSession
+    @StateObject private var progress: UserProgressStore
+    @StateObject private var health: ActivityHealthService
+    @StateObject private var notifications: NotificationManager
+    @StateObject private var tracking: TrackingService
+    @StateObject private var contacts: ContactsFriendService
+    @StateObject private var settings: AppSettings
+    @StateObject private var music: MusicService
+    @StateObject private var movementXP: MovementXPService
+
+    init() {
+        let tracking = TrackingService()
+        let progress = UserProgressStore()
+        _session = StateObject(wrappedValue: AppSession())
+        _progress = StateObject(wrappedValue: progress)
+        _health = StateObject(wrappedValue: ActivityHealthService())
+        _notifications = StateObject(wrappedValue: NotificationManager())
+        _tracking = StateObject(wrappedValue: tracking)
+        _contacts = StateObject(wrappedValue: ContactsFriendService())
+        _settings = StateObject(wrappedValue: AppSettings())
+        _music = StateObject(wrappedValue: MusicService())
+        _movementXP = StateObject(wrappedValue: MovementXPService(tracking: tracking, progress: progress))
+    }
 
     var body: some Scene {
         WindowGroup {

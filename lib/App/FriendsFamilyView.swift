@@ -28,15 +28,18 @@ struct FriendsFamilyView: View {
                         Picker("Section", selection: $segment) {
                             Text("Real-life friends").tag(0)
                             Text("Family").tag(1)
+                            Text("Feed").tag(2)
                         }
                         .pickerStyle(.segmented)
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
                         .padding(.vertical, 12)
 
                         if segment == 0 {
                             realLifeFriends
-                        } else {
+                        } else if segment == 1 {
                             familySection
+                        } else {
+                            SocialFeedView()
                         }
                     }
                 }
@@ -126,6 +129,7 @@ struct FriendsFamilyView: View {
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, LayoutMetrics.headerHorizontalPadding)
 
                 GlassCard {
                     VStack(alignment: .leading, spacing: 14) {
@@ -139,7 +143,7 @@ struct FriendsFamilyView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
                 VStack(spacing: 14) {
                     Button {
@@ -165,7 +169,7 @@ struct FriendsFamilyView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.large)
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
             }
             .padding(.top, 16)
             .padding(.bottom, 32)
@@ -189,7 +193,7 @@ struct FriendsFamilyView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
                 }
 
                 if !contactPicksPreview.isEmpty && contacts.authorizationStatus == .authorized {
@@ -217,7 +221,7 @@ struct FriendsFamilyView: View {
                             }
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
                 }
 
                 listSectionTitle("Your friends")
@@ -250,7 +254,7 @@ struct FriendsFamilyView: View {
                         }
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
             }
             .padding(.vertical, 12)
             .contentMaxWidth()
@@ -290,7 +294,7 @@ struct FriendsFamilyView: View {
                             }
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
                 }
 
                 listSectionTitle("Members")
@@ -317,7 +321,7 @@ struct FriendsFamilyView: View {
                         }
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
             }
             .padding(.vertical, 12)
             .contentMaxWidth()
@@ -328,7 +332,7 @@ struct FriendsFamilyView: View {
         Text(title)
             .font(.title2.weight(.bold))
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal)
+            .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
     }
 
     private var contactPicksPreview: [ContactPick] {

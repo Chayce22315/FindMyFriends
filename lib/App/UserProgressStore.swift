@@ -74,6 +74,35 @@ final class UserProgressStore: ObservableObject {
             defaults.set(grant, forKey: key)
         }
     }
+
+    func syncXPFromDistance(meters: Double, usesMetric: Bool) {
+        let unitMeters = usesMetric ? 1000.0 : 1609.34
+        let totalUnits = Int(floor(meters / unitMeters))
+        guard totalUnits > 0 else { return }
+        let key = distanceKey(usesMetric: usesMetric)
+        let already = defaults.integer(forKey: key)
+        let delta = totalUnits - already
+        guard delta > 0 else { return }
+        let xpPerUnit = distanceXPPerUnit(level: level, usesMetric: usesMetric)
+        addXP(delta * xpPerUnit, reason: "distance")
+        defaults.set(totalUnits, forKey: key)
+    }
+
+    func distanceUnitsAwardedToday(usesMetric: Bool) -> Int {
+        defaults.integer(forKey: distanceKey(usesMetric: usesMetric))
+    }
+
+    func distanceXPPerUnit(level: Int, usesMetric: Bool) -> Int {
+        let base = usesMetric ? 50 : 10
+        let levelBonus = max(0, level - 1) * 50
+        return base + levelBonus
+    }
+
+    private func distanceKey(usesMetric: Bool) -> String {
+        let unit = usesMetric ? "km" : "mi"
+        let day = Calendar.current.startOfDay(for: .now).timeIntervalSince1970
+        return "fmf.xp.distance.\(unit).\(day)"
+    }
 }
 
 extension Notification.Name {

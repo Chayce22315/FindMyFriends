@@ -4,7 +4,7 @@ struct ContentView: View {
     @State private var tab: Tab = .map
 
     private enum Tab: Hashable {
-        case map, places, circle, move, you
+        case map, places, trips, circle, move, you
     }
 
     var body: some View {
@@ -20,6 +20,12 @@ struct ContentView: View {
                     Label("Places", systemImage: "mappin.circle.fill")
                 }
                 .tag(Tab.places)
+
+            TripsView()
+                .tabItem {
+                    Label("Trips", systemImage: "location.north.line")
+                }
+                .tag(Tab.trips)
 
             FriendsFamilyView()
                 .tabItem {
