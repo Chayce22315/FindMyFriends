@@ -24,7 +24,12 @@ final class AppSettings: ObservableObject {
 
     private let defaults: UserDefaults
 
-    static let defaultBackendBaseURL = "http://localhost:4000"
+    /// Physical devices talk to the hosted API by default. Simulator defaults to your Mac.
+    #if targetEnvironment(simulator)
+    static let defaultBackendBaseURL = "http://127.0.0.1:4000"
+    #else
+    static let defaultBackendBaseURL = InviteServerConfiguration.productionBaseURL
+    #endif
 
     private enum Keys {
         static let tracking = "fmf.settings.tracking"
@@ -47,7 +52,16 @@ final class AppSettings: ObservableObject {
             self.notificationsEnabled = true
         }
         if let stored = defaults.string(forKey: Keys.backendBaseURL), !stored.isEmpty {
+            #if !targetEnvironment(simulator)
+            if Self.isLoopbackOrLocalhostBackend(stored) {
+                self.backendBaseURL = InviteServerConfiguration.productionBaseURL
+                defaults.set(InviteServerConfiguration.productionBaseURL, forKey: Keys.backendBaseURL)
+            } else {
+                self.backendBaseURL = stored
+            }
+            #else
             self.backendBaseURL = stored
+            #endif
         } else {
             self.backendBaseURL = Self.defaultBackendBaseURL
         }
@@ -61,5 +75,14 @@ final class AppSettings: ObservableObject {
         } else {
             self.liquidGlassEnabled = true
         }
+    }
+
+    private static func isLoopbackOrLocalhostBackend(_ raw: String) -> Bool {
+        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return t.hasPrefix("http://localhost")
+            || t.hasPrefix("https://localhost")
+            || t.hasPrefix("http://127.0.0.1")
+            || t.hasPrefix("https://127.0.0.1")
+            || t == "http://localhost:4000"
     }
 }

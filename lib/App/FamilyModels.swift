@@ -15,12 +15,15 @@ struct FamilyGroup: Identifiable, Codable, Hashable {
         self.createdAt = createdAt
     }
 
+    /// Shareable join link: always prefers the server’s `inviteUrl` from create/join so it never rewrites to localhost.
     func inviteLink(baseURL: String) -> URL {
-        if let inviteURL, let url = URL(string: inviteURL) {
+        if let inviteURL, let url = URL(string: inviteURL), url.scheme == "http" || url.scheme == "https" {
             return url
         }
         let fallback = Self.defaultInviteURL(for: inviteCode, baseURL: baseURL)
-        return URL(string: fallback) ?? URL(string: "http://localhost:4000/invite/\(inviteCode)")!
+        if let u = URL(string: fallback) { return u }
+        let last = "\(InviteServerConfiguration.productionBaseURL)/invite/\(inviteCode)"
+        return URL(string: last)!
     }
 
     static func defaultInviteURL(for code: String, baseURL: String) -> String {
@@ -31,7 +34,7 @@ struct FamilyGroup: Identifiable, Codable, Hashable {
     private static func normalizedBaseURL(_ baseURL: String) -> String {
         let trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            return "http://localhost:4000"
+            return InviteServerConfiguration.productionBaseURL
         }
         let withScheme = trimmed.lowercased().hasPrefix("http://") || trimmed.lowercased().hasPrefix("https://")
             ? trimmed

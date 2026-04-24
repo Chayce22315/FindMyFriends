@@ -149,15 +149,15 @@ struct ProfileProgressView: View {
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 16) {
-                                SectionHeader(title: "Backend", subtitle: "Invite links and sharing run through this server.")
-                                TextField("https://your-server:4000", text: $settings.backendBaseURL)
+                                SectionHeader(title: "Invite server", subtitle: "The app ships with a default public URL; change it only if you host your own backend.")
+                                TextField("https://…onrender.com", text: $settings.backendBaseURL)
                                     .textInputAutocapitalization(.never)
                                     .keyboardType(.URL)
                                     .autocorrectionDisabled()
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 12)
                                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-                                Text("Set this to your backend URL so invite links work on real devices.")
+                                Text("Share uses the real join link from the server (https), not localhost.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }

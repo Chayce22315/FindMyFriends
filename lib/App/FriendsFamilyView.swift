@@ -62,7 +62,7 @@ struct FriendsFamilyView: View {
                 NavigationStack {
                     Form {
                         TextField("Name your family", text: $familyName, prompt: Text("e.g. The Riveras"))
-                        Text("Invite links are created by the backend at \(settings.backendBaseURL).")
+                        Text("After you create, use Invite on the Family tab — it shares the real https link from the server.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
