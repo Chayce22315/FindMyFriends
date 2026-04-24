@@ -78,9 +78,8 @@ final class LiveActivityManager: ObservableObject {
 
     private func distanceLabel(meters: Double) -> String {
         let usesMetric = Locale.current.measurementSystem == .metric
-        let measurement = Measurement(value: meters, unit: UnitLength.meters)
-        let converted = measurement.converted(to: usesMetric ? .kilometers : .miles)
-        return String(format: "%.1f %@", converted.value, usesMetric ? "km" : "mi")
+        let num = TravelDistanceFormatting.displayString(meters: meters, usesMetric: usesMetric)
+        return "\(num) \(usesMetric ? "km" : "mi")"
     }
 
     private func stepsLabel(_ steps: Int) -> String {

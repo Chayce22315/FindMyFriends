@@ -12,9 +12,7 @@ struct XPDetailsView: View {
     }
 
     private var distanceToday: String {
-        let unitMeters = usesMetric ? 1000.0 : 1609.34
-        let value = tracking.distanceMetersToday / unitMeters
-        return String(format: "%.1f", value)
+        TravelDistanceFormatting.displayString(meters: tracking.distanceMetersToday, usesMetric: usesMetric)
     }
 
     var body: some View {

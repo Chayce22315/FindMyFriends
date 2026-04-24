@@ -104,10 +104,7 @@ struct PlacesView: View {
     private var distanceUnitLabel: String { usesMetric ? "km" : "mi" }
 
     private var distanceValue: String {
-        let meters = tracking.distanceMetersToday
-        let unitMeters = usesMetric ? 1000.0 : 1609.34
-        let value = meters / unitMeters
-        return String(format: "%.1f", value)
+        TravelDistanceFormatting.displayString(meters: tracking.distanceMetersToday, usesMetric: usesMetric)
     }
 
     private var travelXPPerUnit: Int {

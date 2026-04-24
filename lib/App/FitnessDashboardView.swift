@@ -130,7 +130,6 @@ struct FitnessDashboardView: View {
                                         }
                                     } else {
                                         health.requestAccess()
-                                        health.refreshToday()
                                     }
                                 } label: {
                                     Label(
@@ -287,13 +286,13 @@ struct FitnessDashboardView: View {
             .navigationTitle("Move")
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
-                health.refreshToday()
+                health.refreshAuthorizationAndData()
                 progress.syncXPFromSteps(health.stepsToday)
                 music.refreshStatus()
             }
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
-                    health.refreshToday()
+                    health.refreshAuthorizationAndData()
                 }
             }
             .onChange(of: health.stepsToday) { newValue in
