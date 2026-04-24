@@ -9,6 +9,9 @@ struct ProfileProgressView: View {
     @EnvironmentObject private var music: MusicService
     @EnvironmentObject private var liveActivity: LiveActivityManager
 
+    @State private var backendHealthMessage: String?
+    @State private var isCheckingBackendHealth = false
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -149,17 +152,38 @@ struct ProfileProgressView: View {
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 16) {
-                                SectionHeader(title: "Backend", subtitle: "Invite links and sharing run through this server.")
-                                TextField("https://your-server:4000", text: $settings.backendBaseURL)
+                                SectionHeader(
+                                    title: "Invite server",
+                                    subtitle: "Circle uses this for create/join. On a real iPhone, use your Render https URL — not localhost."
+                                )
+                                TextField("https://backend-….onrender.com", text: $settings.backendBaseURL)
                                     .textInputAutocapitalization(.never)
                                     .keyboardType(.URL)
                                     .autocorrectionDisabled()
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 12)
                                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-                                Text("Set this to your backend URL so invite links work on real devices.")
+                                Text("Paste the origin only (no /health, no trailing slash). Free Render may sleep: first tap can take up to a minute.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
+                                Button {
+                                    Task { await pingBackendHealth() }
+                                } label: {
+                                    if isCheckingBackendHealth {
+                                        ProgressView()
+                                            .tint(AppTheme.accent)
+                                    } else {
+                                        Label("Test connection", systemImage: "antenna.radiowaves.left.and.right")
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.large)
+                                .disabled(isCheckingBackendHealth)
+                                if let backendHealthMessage {
+                                    Text(backendHealthMessage)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
@@ -332,6 +356,45 @@ struct ProfileProgressView: View {
                 }
             }
         }
+    }
+
+    private func pingBackendHealth() async {
+        let trimmed = settings.backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        await MainActor.run { backendHealthMessage = nil }
+        guard !trimmed.isEmpty else {
+            await MainActor.run {
+                backendHealthMessage = "Paste your Render URL first."
+            }
+            return
+        }
+        guard let base = BackendClient.normalizedInviteServerBaseURL(trimmed),
+              let url = URL(string: "/health", relativeTo: base)?.absoluteURL else {
+            await MainActor.run {
+                backendHealthMessage = "That does not look like a valid URL. Start with https://"
+            }
+            return
+        }
+        await MainActor.run { isCheckingBackendHealth = true }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 90
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) {
+                await MainActor.run {
+                    backendHealthMessage = "OK — you can create a family in Circle."
+                }
+            } else {
+                await MainActor.run {
+                    backendHealthMessage = "Got a response but not OK. Check the URL points at this app’s backend."
+                }
+            }
+        } catch {
+            await MainActor.run {
+                backendHealthMessage = BackendConnectionHint.friendlyMessage(for: error, baseURL: trimmed)
+            }
+        }
+        await MainActor.run { isCheckingBackendHealth = false }
     }
 
     private func highlightTile(icon: String, title: String, value: String) -> some View {

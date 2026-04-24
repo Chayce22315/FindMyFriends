@@ -24,7 +24,12 @@ final class AppSettings: ObservableObject {
 
     private let defaults: UserDefaults
 
-    static let defaultBackendBaseURL = "http://localhost:4000"
+    /// Simulator: local Node on the Mac. Device: empty so we never default to loopback (localhost is the phone).
+    #if targetEnvironment(simulator)
+    static let defaultBackendBaseURL = "http://127.0.0.1:4000"
+    #else
+    static let defaultBackendBaseURL = ""
+    #endif
 
     private enum Keys {
         static let tracking = "fmf.settings.tracking"
@@ -47,7 +52,16 @@ final class AppSettings: ObservableObject {
             self.notificationsEnabled = true
         }
         if let stored = defaults.string(forKey: Keys.backendBaseURL), !stored.isEmpty {
+            #if targetEnvironment(simulator)
             self.backendBaseURL = stored
+            #else
+            if BackendConnectionHint.isLoopbackBackendURL(stored) {
+                self.backendBaseURL = ""
+                defaults.set("", forKey: Keys.backendBaseURL)
+            } else {
+                self.backendBaseURL = stored
+            }
+            #endif
         } else {
             self.backendBaseURL = Self.defaultBackendBaseURL
         }
@@ -61,5 +75,14 @@ final class AppSettings: ObservableObject {
         } else {
             self.liquidGlassEnabled = true
         }
+    }
+
+    /// URL used for API calls (simulator falls back to default when the field is empty).
+    var effectiveBackendBaseURLForClient: String {
+        let t = backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        #if targetEnvironment(simulator)
+        if t.isEmpty { return Self.defaultBackendBaseURL }
+        #endif
+        return t
     }
 }

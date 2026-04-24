@@ -62,7 +62,7 @@ struct FriendsFamilyView: View {
                 NavigationStack {
                     Form {
                         TextField("Name your family", text: $familyName, prompt: Text("e.g. The Riveras"))
-                        Text("Invite links are created by the backend at \(settings.backendBaseURL).")
+                        Text("Server: \(settings.effectiveBackendBaseURLForClient.isEmpty ? "(not set — open You tab)" : settings.effectiveBackendBaseURLForClient)")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -75,7 +75,11 @@ struct FriendsFamilyView: View {
                             Button("Create") {
                                 createFamilyRemote()
                             }
-                            .disabled(isSubmitting || familyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .disabled(
+                                isSubmitting
+                                    || familyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                    || settings.effectiveBackendBaseURLForClient.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            )
                         }
                     }
                 }
@@ -99,13 +103,20 @@ struct FriendsFamilyView: View {
                             Button("Join") {
                                 joinFamilyRemote()
                             }
-                            .disabled(isSubmitting || joinCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .disabled(
+                                isSubmitting
+                                    || joinCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                    || settings.effectiveBackendBaseURLForClient.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            )
                         }
                     }
                 }
                 .presentationDetents([.medium])
             }
-            .alert("Backend error", isPresented: $showError) {
+            .alert("Invite server", isPresented: $showError) {
+                Button("Open You tab") {
+                    NotificationCenter.default.post(name: .fmfOpenYouTabForBackend, object: nil)
+                }
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage)
@@ -141,6 +152,13 @@ struct FriendsFamilyView: View {
                         Text("Invite links are powered by your backend so they can be shared for real.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+                        #if !targetEnvironment(simulator)
+                        if settings.backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text("Set your Render URL under You (sparkles) → Invite server before creating or joining a family.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        #endif
                     }
                 }
                 .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
@@ -157,6 +175,9 @@ struct FriendsFamilyView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .tint(AppTheme.accent)
+                    #if !targetEnvironment(simulator)
+                    .disabled(settings.backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    #endif
 
                     Button {
                         showJoinFamily = true
@@ -168,6 +189,9 @@ struct FriendsFamilyView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
+                    #if !targetEnvironment(simulator)
+                    .disabled(settings.backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    #endif
                 }
                 .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
             }
@@ -277,7 +301,7 @@ struct FriendsFamilyView: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                ShareLink(item: family.inviteLink(baseURL: settings.backendBaseURL)) {
+                                ShareLink(item: family.inviteLink(baseURL: settings.effectiveBackendBaseURLForClient)) {
                                     Label("Invite", systemImage: "square.and.arrow.up")
                                 }
                                 Button {
@@ -357,7 +381,7 @@ struct FriendsFamilyView: View {
         isSubmitting = true
         Task {
             do {
-                let client = try BackendClient(baseURLString: settings.backendBaseURL)
+                let client = try BackendClient(baseURLString: settings.effectiveBackendBaseURLForClient)
                 let remote = try await client.createFamily(name: name)
                 let group = FamilyGroup(
                     id: remote.id,
@@ -375,7 +399,10 @@ struct FriendsFamilyView: View {
             } catch {
                 await MainActor.run {
                     isSubmitting = false
-                    errorMessage = error.localizedDescription
+                    errorMessage = BackendConnectionHint.friendlyMessage(
+                        for: error,
+                        baseURL: settings.backendBaseURL
+                    )
                     showError = true
                 }
             }
@@ -388,7 +415,7 @@ struct FriendsFamilyView: View {
         isSubmitting = true
         Task {
             do {
-                let client = try BackendClient(baseURLString: settings.backendBaseURL)
+                let client = try BackendClient(baseURLString: settings.effectiveBackendBaseURLForClient)
                 let remote = try await client.joinFamily(code: code)
                 let group = FamilyGroup(
                     id: remote.id,
@@ -406,7 +433,10 @@ struct FriendsFamilyView: View {
             } catch {
                 await MainActor.run {
                     isSubmitting = false
-                    errorMessage = error.localizedDescription
+                    errorMessage = BackendConnectionHint.friendlyMessage(
+                        for: error,
+                        baseURL: settings.backendBaseURL
+                    )
                     showError = true
                 }
             }
