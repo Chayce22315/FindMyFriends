@@ -5,9 +5,24 @@ const path = require("path");
 const crypto = require("crypto");
 
 const PORT = Number(process.env.PORT || 4000);
+
+/** Render (and similar) set this to the public https URL — use it when BASE_URL is unset. */
+function defaultBaseUrlFromEnv() {
+  const render = process.env.RENDER_EXTERNAL_URL;
+  if (render && String(render).trim()) {
+    return normalizeBaseUrl(render);
+  }
+  return `http://localhost:${PORT}`;
+}
+
 const BASE_URL = normalizeBaseUrl(
-  process.env.BASE_URL || `http://localhost:${PORT}`
+  process.env.BASE_URL || defaultBaseUrlFromEnv()
 );
+
+/** Swift JSONDecoder.iso8601 rejects fractional seconds; Node's toISOString() includes them. */
+function toISO8601NoFraction(date) {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
 
 const DATA_DIR = path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "families.json");
@@ -99,7 +114,7 @@ app.post("/api/families", (req, res) => {
     name,
     inviteCode,
     inviteUrl: buildInviteUrl(inviteCode),
-    createdAt: new Date().toISOString(),
+    createdAt: toISO8601NoFraction(new Date()),
   };
 
   store.families.push(family);
@@ -169,6 +184,9 @@ app.get("/invite/:code", (req, res) => {
 </html>`);
 });
 
-app.listen(PORT, () => {
-  console.log(`FindMyFriends backend running on ${BASE_URL}`);
+const HOST = process.env.HOST || "0.0.0.0";
+
+app.listen(PORT, HOST, () => {
+  console.log(`FindMyFriends backend listening on http://${HOST}:${PORT}`);
+  console.log(`Public BASE_URL (invite links): ${BASE_URL}`);
 });
