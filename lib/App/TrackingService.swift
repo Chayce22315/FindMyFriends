@@ -18,12 +18,18 @@ final class TrackingService: NSObject, ObservableObject {
     private let distanceKey = "fmf.tracking.distanceMetersToday"
     private let distanceDayKey = "fmf.tracking.distanceDay"
 
+    /// Ignore GPS noise when sitting still: require meaningful movement before counting distance.
+    private let minMovementMeters: CLLocationDistance = 22
+    private let maxPlausibleJumpMeters: CLLocationDistance = 4_000
+    /// Reject fixes worse than this horizontal accuracy (meters) for odometer math.
+    private let maxHorizontalAccuracyMeters: CLLocationDistance = 65
+
     override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         manager.activityType = .fitness
-        manager.distanceFilter = 8
+        manager.distanceFilter = 25
         authorizationStatus = manager.authorizationStatus
         loadDistanceCache()
     }
@@ -152,9 +158,27 @@ extension TrackingService: CLLocationManagerDelegate {
         }
 
         let delta = location.distance(from: last)
-        if delta >= 8 && delta < 5000 {
+
+        let currentAcc = location.horizontalAccuracy
+        let lastAcc = last.horizontalAccuracy
+        let accuracyOK =
+            currentAcc >= 0 && currentAcc <= maxHorizontalAccuracyMeters
+            && lastAcc >= 0 && lastAcc <= maxHorizontalAccuracyMeters
+
+        let speed = location.speed
+        /// Below ~1 m/s Core Location usually means still or unreliable; require a larger delta so GPS drift does not add miles.
+        let minDeltaForThisFix: CLLocationDistance = {
+            if speed >= 1.0 { return minMovementMeters }
+            if speed >= 0 { return 50 }
+            return 60
+        }()
+
+        if accuracyOK,
+           delta >= minDeltaForThisFix,
+           delta < maxPlausibleJumpMeters {
             distanceMetersToday += delta
         }
+
         lastLocation = location
         persistDistance()
     }
