@@ -9,6 +9,9 @@ struct ProfileProgressView: View {
     @EnvironmentObject private var music: MusicService
     @EnvironmentObject private var liveActivity: LiveActivityManager
 
+    @State private var backendHealthMessage: String?
+    @State private var isCheckingBackendHealth = false
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -149,17 +152,39 @@ struct ProfileProgressView: View {
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 16) {
-                                SectionHeader(title: "Backend", subtitle: "Invite links and sharing run through this server.")
-                                TextField("https://your-server:4000", text: $settings.backendBaseURL)
+                                SectionHeader(title: "Invite server", subtitle: "Family create/join and share links need a reachable URL — not localhost on this phone.")
+                                TextField("https://your-app.onrender.com", text: $settings.backendBaseURL)
                                     .textInputAutocapitalization(.never)
                                     .keyboardType(.URL)
                                     .autocorrectionDisabled()
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 12)
                                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-                                Text("Set this to your backend URL so invite links work on real devices.")
+                                Text("Deploy the `backend/` folder (Node) on a free host, copy its public HTTPS URL here, then use Circle to create or join a family.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
+                                HStack(spacing: 12) {
+                                    Button {
+                                        Task { await pingBackendHealth() }
+                                    } label: {
+                                        if isCheckingBackendHealth {
+                                            ProgressView()
+                                                .tint(AppTheme.accent)
+                                        } else {
+                                            Label("Test connection", systemImage: "antenna.radiowaves.left.and.right")
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.large)
+                                    .disabled(isCheckingBackendHealth)
+
+                                    Spacer(minLength: 0)
+                                }
+                                if let backendHealthMessage {
+                                    Text(backendHealthMessage)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
@@ -356,6 +381,47 @@ struct ProfileProgressView: View {
                 .foregroundStyle(AppTheme.accentSecondary)
         }
         .labelStyle(.titleAndIcon)
+    }
+
+    private func pingBackendHealth() async {
+        let trimmed = settings.backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        await MainActor.run {
+            backendHealthMessage = nil
+        }
+        guard !trimmed.isEmpty else {
+            await MainActor.run {
+                backendHealthMessage = "Paste your server URL first (from Render, Railway, Fly.io, etc.)."
+            }
+            return
+        }
+        guard let base = BackendClient.normalizedInviteServerBaseURL(trimmed),
+              let url = URL(string: "/health", relativeTo: base)?.absoluteURL else {
+            await MainActor.run {
+                backendHealthMessage = "That URL does not look valid. Include https:// and no trailing slash."
+            }
+            return
+        }
+        await MainActor.run { isCheckingBackendHealth = true }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 12
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) {
+                await MainActor.run {
+                    backendHealthMessage = "Connected. Invite flows can reach \(trimmed)."
+                }
+            } else {
+                await MainActor.run {
+                    backendHealthMessage = "The server replied, but not with a normal OK. Check that this URL is your Find My Friends backend."
+                }
+            }
+        } catch {
+            await MainActor.run {
+                backendHealthMessage = BackendConnectionHint.friendlyMessage(for: error, baseURL: trimmed)
+            }
+        }
+        await MainActor.run { isCheckingBackendHealth = false }
     }
 
     private var statusText: String {

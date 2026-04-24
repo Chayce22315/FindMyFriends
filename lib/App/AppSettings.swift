@@ -24,7 +24,8 @@ final class AppSettings: ObservableObject {
 
     private let defaults: UserDefaults
 
-    static let defaultBackendBaseURL = "http://localhost:4000"
+    /// Empty so a physical phone does not default to loopback (localhost is the device itself).
+    static let defaultBackendBaseURL = ""
 
     private enum Keys {
         static let tracking = "fmf.settings.tracking"
@@ -46,7 +47,7 @@ final class AppSettings: ObservableObject {
         } else {
             self.notificationsEnabled = true
         }
-        if let stored = defaults.string(forKey: Keys.backendBaseURL), !stored.isEmpty {
+        if let stored = defaults.string(forKey: Keys.backendBaseURL) {
             self.backendBaseURL = stored
         } else {
             self.backendBaseURL = Self.defaultBackendBaseURL

@@ -15,23 +15,27 @@ struct FamilyGroup: Identifiable, Codable, Hashable {
         self.createdAt = createdAt
     }
 
-    func inviteLink(baseURL: String) -> URL {
+    /// Shareable invite URL when the server returned `inviteURL`, or when `baseURL` is a reachable host (not empty).
+    func inviteLink(baseURL: String) -> URL? {
         if let inviteURL, let url = URL(string: inviteURL) {
             return url
         }
-        let fallback = Self.defaultInviteURL(for: inviteCode, baseURL: baseURL)
-        return URL(string: fallback) ?? URL(string: "http://localhost:4000/invite/\(inviteCode)")!
+        guard let fallback = Self.defaultInviteURL(for: inviteCode, baseURL: baseURL) else {
+            return nil
+        }
+        return URL(string: fallback)
     }
 
-    static func defaultInviteURL(for code: String, baseURL: String) -> String {
+    static func defaultInviteURL(for code: String, baseURL: String) -> String? {
         let normalized = normalizedBaseURL(baseURL)
+        guard !normalized.isEmpty else { return nil }
         return "\(normalized)/invite/\(code)"
     }
 
     private static func normalizedBaseURL(_ baseURL: String) -> String {
         let trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            return "http://localhost:4000"
+            return ""
         }
         let withScheme = trimmed.lowercased().hasPrefix("http://") || trimmed.lowercased().hasPrefix("https://")
             ? trimmed
