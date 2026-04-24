@@ -5,15 +5,20 @@ struct FriendsFamilyView: View {
     @EnvironmentObject private var session: AppSession
     @EnvironmentObject private var contacts: ContactsFriendService
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var notifications: NotificationManager
 
     @State private var segment = 0
     @State private var showCreateFamily = false
     @State private var showJoinFamily = false
     @State private var familyName = ""
     @State private var joinCode = ""
+    @State private var joinDisplayName = "Me"
     @State private var isSubmitting = false
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var rosterPollTask: Task<Void, Never>?
+    @State private var knownRosterDeviceIds: Set<String> = []
+    @State private var rosterBootstrapComplete = false
 
     var body: some View {
         NavigationStack {
@@ -86,6 +91,8 @@ struct FriendsFamilyView: View {
                     Form {
                         TextField("Invite code", text: $joinCode, prompt: Text("ABC123"))
                             .textInputAutocapitalization(.characters)
+                        TextField("Your name in the circle", text: $joinDisplayName, prompt: Text("Alex"))
+                            .textInputAutocapitalization(.words)
                         Text("We will validate the invite code with your backend.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -114,7 +121,63 @@ struct FriendsFamilyView: View {
                 if contacts.authorizationStatus == .authorized {
                     contacts.reloadContacts()
                 }
+                Task { await syncRosterFromServerIfPossible() }
+                startRosterPollingIfOrganizer()
             }
+            .onDisappear {
+                rosterPollTask?.cancel()
+                rosterPollTask = nil
+            }
+            .onChange(of: session.family?.inviteCode) { _, _ in
+                rosterPollTask?.cancel()
+                rosterPollTask = nil
+                knownRosterDeviceIds = []
+                rosterBootstrapComplete = false
+                startRosterPollingIfOrganizer()
+                Task { await syncRosterFromServerIfPossible() }
+            }
+        }
+    }
+
+    private var isFamilyOrganizer: Bool {
+        session.familyMembers.contains { $0.isYou && $0.role == "Organizer" }
+    }
+
+    private func startRosterPollingIfOrganizer() {
+        guard session.hasFamily, isFamilyOrganizer else { return }
+        guard rosterPollTask == nil else { return }
+        rosterPollTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 45_000_000_000)
+                await syncRosterFromServerIfPossible()
+            }
+        }
+    }
+
+    @MainActor
+    private func syncRosterFromServerIfPossible() async {
+        guard let family = session.family else { return }
+        let base = settings.backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !base.isEmpty else { return }
+        do {
+            let client = try BackendClient(baseURLString: base)
+            let roster = try await client.fetchRoster(inviteCode: family.inviteCode)
+            session.applyServerRoster(roster)
+            let myId = DeviceIdentity.id
+            let remoteIds = Set(roster.members.map(\.deviceId))
+            if !rosterBootstrapComplete {
+                knownRosterDeviceIds = remoteIds
+                rosterBootstrapComplete = true
+            } else if isFamilyOrganizer {
+                for member in roster.members where member.deviceId != myId {
+                    if !knownRosterDeviceIds.contains(member.deviceId) {
+                        knownRosterDeviceIds.insert(member.deviceId)
+                        notifications.scheduleFamilyMemberJoined(displayName: member.name, familyName: family.name)
+                    }
+                }
+            }
+        } catch {
+            // Silent: roster is optional when offline
         }
     }
 
@@ -297,7 +360,11 @@ struct FriendsFamilyView: View {
                     .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
                 }
 
-                listSectionTitle("Members")
+                listSectionTitle("People in your circle")
+                Text("Family members appear here when they join. Organizers see updates from the server automatically.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
                 GlassCard {
                     VStack(spacing: 0) {
                         ForEach(session.familyMembers) { member in
@@ -358,7 +425,11 @@ struct FriendsFamilyView: View {
         Task {
             do {
                 let client = try BackendClient(baseURLString: settings.backendBaseURL)
-                let remote = try await client.createFamily(name: name)
+                let remote = try await client.createFamily(
+                    name: name,
+                    deviceId: DeviceIdentity.id,
+                    displayName: "Organizer"
+                )
                 let group = FamilyGroup(
                     id: remote.id,
                     name: remote.name,
@@ -371,7 +442,11 @@ struct FriendsFamilyView: View {
                     familyName = ""
                     showCreateFamily = false
                     isSubmitting = false
+                    knownRosterDeviceIds = []
+                    rosterBootstrapComplete = false
+                    startRosterPollingIfOrganizer()
                 }
+                await syncRosterFromServerIfPossible()
             } catch {
                 await MainActor.run {
                     isSubmitting = false
@@ -385,11 +460,18 @@ struct FriendsFamilyView: View {
     private func joinFamilyRemote() {
         let code = joinCode.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !code.isEmpty else { return }
+        let display = joinDisplayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "Me"
+            : joinDisplayName.trimmingCharacters(in: .whitespacesAndNewlines)
         isSubmitting = true
         Task {
             do {
                 let client = try BackendClient(baseURLString: settings.backendBaseURL)
-                let remote = try await client.joinFamily(code: code)
+                let remote = try await client.joinFamily(
+                    code: code,
+                    deviceId: DeviceIdentity.id,
+                    displayName: display
+                )
                 let group = FamilyGroup(
                     id: remote.id,
                     name: remote.name,
@@ -400,9 +482,11 @@ struct FriendsFamilyView: View {
                 await MainActor.run {
                     session.setFamily(group, role: "Member")
                     joinCode = ""
+                    joinDisplayName = "Me"
                     showJoinFamily = false
                     isSubmitting = false
                 }
+                await syncRosterFromServerIfPossible()
             } catch {
                 await MainActor.run {
                     isSubmitting = false

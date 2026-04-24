@@ -4,6 +4,8 @@ import MusicKit
 
 struct MusicTrack: Identifiable, Hashable, Codable {
     let id: UUID
+    /// Set for on-device library tracks so we can queue playback.
+    let libraryPersistentID: UInt64?
     let title: String
     let artist: String
     let duration: String
@@ -24,6 +26,7 @@ final class MusicService: ObservableObject {
     @Published private(set) var recentlyPlayed: [MusicTrack] = []
     @Published private(set) var recommendations: [MusicTrack] = []
     @Published private(set) var topArtists: [MusicArtist] = []
+    @Published private(set) var playbackMessage: String?
 
     private var didLoadInsights = false
 
@@ -114,6 +117,7 @@ final class MusicService: ObservableObject {
         let hapticsAllowed = duration > 60 && duration < 600
         return MusicTrack(
             id: UUID(),
+            libraryPersistentID: item.persistentID,
             title: item.title ?? "Unknown Track",
             artist: item.artist ?? "Unknown Artist",
             duration: durationLabel,
@@ -122,10 +126,63 @@ final class MusicService: ObservableObject {
         )
     }
 
+    /// Plays one library track by persistent ID (requires Music + Media Library access).
+    func playLibraryTrack(_ track: MusicTrack) {
+        playbackMessage = nil
+        guard isAuthorized else {
+            playbackMessage = "Connect Apple Music first."
+            return
+        }
+        guard isLibraryAuthorized else {
+            playbackMessage = "Allow Media Library access to play your songs."
+            return
+        }
+        guard let pid = track.libraryPersistentID else {
+            playbackMessage = "This row is a preview — connect with a real library to play."
+            return
+        }
+        let pred = MPMediaPropertyPredicate(value: NSNumber(value: pid), forProperty: MPMediaItemPropertyPersistentID)
+        let query = MPMediaQuery()
+        query.addFilterPredicate(pred)
+        guard let item = query.items?.first else {
+            playbackMessage = "Could not find that song in your library."
+            return
+        }
+        let player = MPMusicPlayerController.systemMusicPlayer
+        player.setQueue(with: MPMediaItemCollection(items: [item]))
+        player.play()
+        playbackMessage = "Playing \(track.title)"
+    }
+
+    /// Shuffles a short queue of songs by this artist from your library.
+    func playLibraryArtist(_ artist: MusicArtist) {
+        playbackMessage = nil
+        guard isAuthorized, isLibraryAuthorized else {
+            playbackMessage = "Connect Apple Music and allow library access."
+            return
+        }
+        let name = artist.name
+        let pred = MPMediaPropertyPredicate(value: name, forProperty: MPMediaItemPropertyArtist, comparisonType: .equalTo)
+        let query = MPMediaQuery.songs()
+        query.addFilterPredicate(pred)
+        let items = (query.items ?? []).sorted { $0.playCount > $1.playCount }
+        let slice = Array(items.prefix(24))
+        guard !slice.isEmpty else {
+            playbackMessage = "No songs for \(name) in this library."
+            return
+        }
+        let player = MPMusicPlayerController.systemMusicPlayer
+        player.setQueue(with: MPMediaItemCollection(items: slice))
+        player.shuffleMode = .songs
+        player.play()
+        playbackMessage = "Playing \(artist.name)"
+    }
+
     private func loadMockInsights() {
         recentlyPlayed = [
             MusicTrack(
                 id: UUID(),
+                libraryPersistentID: nil,
                 title: "Solar Run",
                 artist: "Nina Vale",
                 duration: "3:42",
@@ -134,6 +191,7 @@ final class MusicService: ObservableObject {
             ),
             MusicTrack(
                 id: UUID(),
+                libraryPersistentID: nil,
                 title: "Night Ride",
                 artist: "Atlas Drive",
                 duration: "4:18",
@@ -142,6 +200,7 @@ final class MusicService: ObservableObject {
             ),
             MusicTrack(
                 id: UUID(),
+                libraryPersistentID: nil,
                 title: "Coastline",
                 artist: "Eden Park",
                 duration: "2:59",
@@ -153,6 +212,7 @@ final class MusicService: ObservableObject {
         recommendations = [
             MusicTrack(
                 id: UUID(),
+                libraryPersistentID: nil,
                 title: "Pulse Runner",
                 artist: "Mono Lake",
                 duration: "3:12",
@@ -161,6 +221,7 @@ final class MusicService: ObservableObject {
             ),
             MusicTrack(
                 id: UUID(),
+                libraryPersistentID: nil,
                 title: "Clouds Over",
                 artist: "Vera Stone",
                 duration: "3:55",
@@ -169,6 +230,7 @@ final class MusicService: ObservableObject {
             ),
             MusicTrack(
                 id: UUID(),
+                libraryPersistentID: nil,
                 title: "Golden Hours",
                 artist: "Lumen",
                 duration: "4:06",

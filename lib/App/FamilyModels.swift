@@ -53,11 +53,14 @@ struct FamilyMember: Identifiable, Codable, Hashable {
     var name: String
     var role: String
     var isYou: Bool
+    /// Matches server roster `deviceId` when synced from the backend.
+    var deviceId: String?
 
-    init(id: UUID = UUID(), name: String, role: String, isYou: Bool = false) {
+    init(id: UUID = UUID(), name: String, role: String, isYou: Bool = false, deviceId: String? = nil) {
         self.id = id
         self.name = name
         self.role = role
         self.isYou = isYou
+        self.deviceId = deviceId
     }
 }

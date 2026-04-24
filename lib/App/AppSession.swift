@@ -54,10 +54,29 @@ final class AppSession: ObservableObject {
         persistFamily()
         if familyMembers.isEmpty {
             familyMembers = [
-                FamilyMember(name: "You", role: role, isYou: true),
+                FamilyMember(name: "You", role: role, isYou: true, deviceId: DeviceIdentity.id),
             ]
             persistMembers()
         }
+    }
+
+    /// Merges server roster into **Members** (Circle). Keeps your row; adds/updates others by `deviceId`.
+    func applyServerRoster(_ roster: BackendRosterResponse) {
+        guard family?.inviteCode == roster.inviteCode else { return }
+        let myId = DeviceIdentity.id
+        var list: [FamilyMember] = []
+        if let remoteYou = roster.members.first(where: { $0.deviceId == myId }) {
+            list.append(FamilyMember(name: remoteYou.name, role: remoteYou.role, isYou: true, deviceId: myId))
+        } else if let localYou = familyMembers.first(where: { $0.isYou }) {
+            list.append(FamilyMember(id: localYou.id, name: localYou.name, role: localYou.role, isYou: true, deviceId: myId))
+        } else {
+            list.append(FamilyMember(name: "You", role: "Member", isYou: true, deviceId: myId))
+        }
+        for remote in roster.members where remote.deviceId != myId {
+            list.append(FamilyMember(name: remote.name, role: remote.role, isYou: false, deviceId: remote.deviceId))
+        }
+        familyMembers = list
+        persistMembers()
     }
 
     func addFriend(_ friend: Friend) {

@@ -5,9 +5,22 @@ const path = require("path");
 const crypto = require("crypto");
 
 const PORT = Number(process.env.PORT || 4000);
+
+function defaultBaseUrlFromEnv() {
+  const render = process.env.RENDER_EXTERNAL_URL;
+  if (render && String(render).trim()) {
+    return normalizeBaseUrl(render);
+  }
+  return `http://localhost:${PORT}`;
+}
+
 const BASE_URL = normalizeBaseUrl(
-  process.env.BASE_URL || `http://localhost:${PORT}`
+  process.env.BASE_URL || defaultBaseUrlFromEnv()
 );
+
+function toISO8601NoFraction(date) {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
 
 const DATA_DIR = path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "families.json");
@@ -42,6 +55,11 @@ function loadStore() {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.families)) {
       return { families: [] };
+    }
+    for (const f of parsed.families) {
+      if (!Array.isArray(f.members)) {
+        f.members = [];
+      }
     }
     return parsed;
   } catch (error) {
@@ -78,6 +96,57 @@ function findFamilyByCode(store, code) {
   return store.families.find((family) => family.inviteCode === normalized);
 }
 
+function publicFamilyPayload(family) {
+  return {
+    id: family.id,
+    name: family.name,
+    inviteCode: family.inviteCode,
+    inviteUrl: family.inviteUrl,
+    createdAt: family.createdAt,
+    memberCount: Array.isArray(family.members) ? family.members.length : 0,
+  };
+}
+
+function rosterPayload(family) {
+  const members = Array.isArray(family.members) ? family.members : [];
+  return {
+    familyId: family.id,
+    name: family.name,
+    inviteCode: family.inviteCode,
+    members: members.map((m) => ({
+      deviceId: m.deviceId,
+      name: m.name,
+      role: m.role,
+      joinedAt: m.joinedAt,
+    })),
+  };
+}
+
+function upsertMember(family, { deviceId, name, role }) {
+  if (!family.members) {
+    family.members = [];
+  }
+  const id = String(deviceId || "").trim();
+  const display = String(name || "Someone").trim().slice(0, 80) || "Someone";
+  const r = String(role || "Member").trim().slice(0, 40) || "Member";
+  if (!id) {
+    return { added: false, duplicate: false };
+  }
+  const existing = family.members.find((m) => m.deviceId === id);
+  if (existing) {
+    existing.name = display;
+    existing.role = r;
+    return { added: false, duplicate: true };
+  }
+  family.members.push({
+    deviceId: id,
+    name: display,
+    role: r,
+    joinedAt: toISO8601NoFraction(new Date()),
+  });
+  return { added: true, duplicate: false };
+}
+
 app.get("/health", (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
@@ -99,13 +168,20 @@ app.post("/api/families", (req, res) => {
     name,
     inviteCode,
     inviteUrl: buildInviteUrl(inviteCode),
-    createdAt: new Date().toISOString(),
+    createdAt: toISO8601NoFraction(new Date()),
+    members: [],
   };
+
+  const deviceId = String(req.body?.deviceId || "").trim();
+  const displayName = String(req.body?.displayName || "Organizer").trim().slice(0, 80) || "Organizer";
+  if (deviceId) {
+    upsertMember(family, { deviceId, name: displayName, role: "Organizer" });
+  }
 
   store.families.push(family);
   saveStore(store);
 
-  return res.status(201).json(family);
+  return res.status(201).json(publicFamilyPayload(family));
 });
 
 app.post("/api/families/join", (req, res) => {
@@ -120,7 +196,28 @@ app.post("/api/families/join", (req, res) => {
     return res.status(404).json({ error: "Invite code not found." });
   }
 
-  return res.json(family);
+  const deviceId = String(req.body?.deviceId || "").trim();
+  const displayName = String(req.body?.displayName || "Member").trim().slice(0, 80) || "Member";
+  let newJoin = false;
+  if (deviceId) {
+    const { added } = upsertMember(family, { deviceId, name: displayName, role: "Member" });
+    newJoin = added;
+    saveStore(store);
+  }
+
+  const body = publicFamilyPayload(family);
+  body.newJoin = newJoin;
+  return res.json(body);
+});
+
+app.get("/api/families/:code/roster", (req, res) => {
+  const code = normalizeInviteCode(req.params.code);
+  const store = loadStore();
+  const family = findFamilyByCode(store, code);
+  if (!family) {
+    return res.status(404).json({ error: "Invite code not found." });
+  }
+  return res.json(rosterPayload(family));
 });
 
 app.get("/api/invites/:code", (req, res) => {
@@ -130,7 +227,7 @@ app.get("/api/invites/:code", (req, res) => {
   if (!family) {
     return res.status(404).json({ error: "Invite code not found." });
   }
-  return res.json(family);
+  return res.json(publicFamilyPayload(family));
 });
 
 app.get("/invite/:code", (req, res) => {
@@ -169,6 +266,9 @@ app.get("/invite/:code", (req, res) => {
 </html>`);
 });
 
-app.listen(PORT, () => {
-  console.log(`FindMyFriends backend running on ${BASE_URL}`);
+const HOST = process.env.HOST || "0.0.0.0";
+
+app.listen(PORT, HOST, () => {
+  console.log(`FindMyFriends backend listening on http://${HOST}:${PORT}`);
+  console.log(`Public BASE_URL (invite links): ${BASE_URL}`);
 });

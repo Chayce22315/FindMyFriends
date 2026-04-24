@@ -68,6 +68,17 @@ final class NotificationManager: NSObject, ObservableObject {
         UNUserNotificationCenter.current().add(request)
     }
 
+    func scheduleFamilyMemberJoined(displayName: String, familyName: String) {
+        guard notificationsEnabled else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Someone joined \(familyName)"
+        content.body = "\(displayName) is now in your Circle. Open the app to see everyone."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: "fmf.join.\(UUID().uuidString)", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
+    }
+
     @objc private func handleLevelUp(_ note: Notification) {
         guard let level = note.object as? Int else { return }
         scheduleLevelUp(level: level)

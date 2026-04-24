@@ -6,6 +6,9 @@ struct BackendFamilyResponse: Codable {
     let inviteCode: String
     let inviteUrl: String
     let createdAt: Date
+    let memberCount: Int?
+    /// Present on join response when this device was newly added to the roster.
+    let newJoin: Bool?
 }
 
 struct BackendErrorResponse: Codable {
@@ -46,16 +49,37 @@ final class BackendClient {
         self.decoder.dateDecodingStrategy = .iso8601
     }
 
-    func createFamily(name: String) async throws -> BackendFamilyResponse {
-        let payload = CreateFamilyPayload(name: name)
+    func createFamily(name: String, deviceId: String, displayName: String) async throws -> BackendFamilyResponse {
+        let payload = CreateFamilyPayload(name: name, deviceId: deviceId, displayName: displayName)
         let request = try buildRequest(path: "/api/families", body: payload)
         return try await send(request)
     }
 
-    func joinFamily(code: String) async throws -> BackendFamilyResponse {
-        let payload = JoinFamilyPayload(code: code)
+    func joinFamily(code: String, deviceId: String, displayName: String) async throws -> BackendFamilyResponse {
+        let payload = JoinFamilyPayload(code: code, deviceId: deviceId, displayName: displayName)
         let request = try buildRequest(path: "/api/families/join", body: payload)
         return try await send(request)
+    }
+
+    func fetchRoster(inviteCode: String) async throws -> BackendRosterResponse {
+        let normalized = inviteCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard let url = URL(string: "/api/families/\(normalized)/roster", relativeTo: baseURL) else {
+            throw BackendClientError.invalidBaseURL
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw BackendClientError.invalidResponse
+        }
+        if (200 ..< 300).contains(http.statusCode) {
+            return try decoder.decode(BackendRosterResponse.self, from: data)
+        }
+        if let error = try? decoder.decode(BackendErrorResponse.self, from: data),
+           let message = error.error, !message.isEmpty {
+            throw BackendClientError.server(message)
+        }
+        throw BackendClientError.invalidResponse
     }
 
     private func buildRequest<T: Encodable>(path: String, body: T) throws -> URLRequest {
@@ -99,8 +123,12 @@ final class BackendClient {
 
 private struct CreateFamilyPayload: Codable {
     let name: String
+    let deviceId: String
+    let displayName: String
 }
 
 private struct JoinFamilyPayload: Codable {
     let code: String
+    let deviceId: String
+    let displayName: String
 }

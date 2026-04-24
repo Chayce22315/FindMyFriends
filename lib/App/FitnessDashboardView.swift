@@ -61,9 +61,9 @@ struct FitnessDashboardView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
 
                                 GeometryReader { geo in
-                                    let s = min(1.7, max(1.15, geo.size.width / 235))
+                                    let s = min(1.55, max(1.0, geo.size.width / 250))
                                     let wide = geo.size.width > 400
-                                    VStack(spacing: 20) {
+                                    VStack(spacing: 16) {
                                         ActivityRingView(
                                             stepProgress: stepPercent,
                                             calorieProgress: caloriePercent,
@@ -229,6 +229,85 @@ struct FitnessDashboardView: View {
                         }
                         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
+                        if music.isAuthorized, music.isLibraryAuthorized {
+                            GlassCard {
+                                VStack(alignment: .leading, spacing: 14) {
+                                    SectionHeader(
+                                        title: "Play from your library",
+                                        subtitle: "Recently played tracks and artists you listen to (on-device library)."
+                                    )
+                                    if !music.recentlyPlayed.isEmpty {
+                                        Text("Recently played")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.secondary)
+                                        ForEach(music.recentlyPlayed.prefix(6)) { track in
+                                            Button {
+                                                music.playLibraryTrack(track)
+                                            } label: {
+                                                HStack {
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        Text(track.title)
+                                                            .font(.body.weight(.medium))
+                                                            .foregroundStyle(.primary)
+                                                        Text(track.artist)
+                                                            .font(.caption)
+                                                            .foregroundStyle(.secondary)
+                                                    }
+                                                    Spacer()
+                                                    Image(systemName: "play.circle.fill")
+                                                        .font(.title2)
+                                                        .foregroundStyle(AppTheme.accent)
+                                                }
+                                                .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(.plain)
+                                            if track.id != music.recentlyPlayed.prefix(6).last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                    if !music.topArtists.isEmpty {
+                                        Text("Artists you play")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.secondary)
+                                            .padding(.top, 8)
+                                        ForEach(music.topArtists.prefix(6)) { artist in
+                                            Button {
+                                                music.playLibraryArtist(artist)
+                                            } label: {
+                                                HStack {
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        Text(artist.name)
+                                                            .font(.body.weight(.medium))
+                                                            .foregroundStyle(.primary)
+                                                        Text("Top: \(artist.topSong) · \(artist.plays) plays in library")
+                                                            .font(.caption)
+                                                            .foregroundStyle(.secondary)
+                                                    }
+                                                    Spacer()
+                                                    Image(systemName: "shuffle.circle.fill")
+                                                        .font(.title2)
+                                                        .foregroundStyle(AppTheme.accentSecondary)
+                                                }
+                                                .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(.plain)
+                                            if artist.id != music.topArtists.prefix(6).last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                    if let msg = music.playbackMessage {
+                                        Text(msg)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .padding(.top, 4)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+                        }
+
                         GlassCard {
                             VStack(alignment: .leading, spacing: 14) {
                                 SectionHeader(title: "This week", subtitle: "A quick snapshot, full history lives in Health.")
@@ -289,10 +368,13 @@ struct FitnessDashboardView: View {
                 health.refreshAuthorizationAndData()
                 progress.syncXPFromSteps(health.stepsToday)
                 music.refreshStatus()
+                music.loadInsightsIfNeeded()
             }
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
                     health.refreshAuthorizationAndData()
+                    music.refreshStatus()
+                    music.loadInsightsIfNeeded()
                 }
             }
             .onChange(of: health.stepsToday) { newValue in
