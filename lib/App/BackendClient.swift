@@ -35,6 +35,11 @@ final class BackendClient {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
+    /// Normalizes the invite server base URL (same rules as the API client).
+    static func normalizedInviteServerBaseURL(_ value: String) -> URL? {
+        normalizeBaseURL(value)
+    }
+
     init(baseURLString: String, session: URLSession = .shared) throws {
         guard let url = BackendClient.normalizeBaseURL(baseURLString) else {
             throw BackendClientError.invalidBaseURL

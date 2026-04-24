@@ -62,7 +62,7 @@ struct FriendsFamilyView: View {
                 NavigationStack {
                     Form {
                         TextField("Name your family", text: $familyName, prompt: Text("e.g. The Riveras"))
-                        Text("Invite links are created by the backend at \(settings.backendBaseURL).")
+                        Text(backendFootnoteForCreate)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -75,7 +75,11 @@ struct FriendsFamilyView: View {
                             Button("Create") {
                                 createFamilyRemote()
                             }
-                            .disabled(isSubmitting || familyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .disabled(
+                                isSubmitting
+                                    || familyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                    || settings.backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            )
                         }
                     }
                 }
@@ -86,7 +90,7 @@ struct FriendsFamilyView: View {
                     Form {
                         TextField("Invite code", text: $joinCode, prompt: Text("ABC123"))
                             .textInputAutocapitalization(.characters)
-                        Text("We will validate the invite code with your backend.")
+                        Text(backendFootnoteForJoin)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -99,13 +103,17 @@ struct FriendsFamilyView: View {
                             Button("Join") {
                                 joinFamilyRemote()
                             }
-                            .disabled(isSubmitting || joinCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .disabled(
+                                isSubmitting
+                                    || joinCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                    || settings.backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            )
                         }
                     }
                 }
                 .presentationDetents([.medium])
             }
-            .alert("Backend error", isPresented: $showError) {
+            .alert("Invite server", isPresented: $showError) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage)
@@ -116,6 +124,31 @@ struct FriendsFamilyView: View {
                 }
             }
         }
+    }
+
+    private var backendURLTrimmed: String {
+        settings.backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var familyGateBackendHint: String {
+        if backendURLTrimmed.isEmpty {
+            return "Set your invite server URL under You → Backend (use a free host if you do not have a computer running the app folder `backend/`)."
+        }
+        return "Using \(backendURLTrimmed). On a phone, avoid localhost — that is this device, not a Mac."
+    }
+
+    private var backendFootnoteForCreate: String {
+        if backendURLTrimmed.isEmpty {
+            return "Add your server URL under You → Backend first (HTTPS from a free host works on iPhone)."
+        }
+        return "The server at \(backendURLTrimmed) creates your invite link."
+    }
+
+    private var backendFootnoteForJoin: String {
+        if backendURLTrimmed.isEmpty {
+            return "Add your server URL under You → Backend so we can look up this code."
+        }
+        return "We validate the code with \(backendURLTrimmed)."
     }
 
     private var familyGate: some View {
@@ -141,6 +174,9 @@ struct FriendsFamilyView: View {
                         Text("Invite links are powered by your backend so they can be shared for real.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+                        Text(familyGateBackendHint)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
@@ -157,6 +193,7 @@ struct FriendsFamilyView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .tint(AppTheme.accent)
+                    .disabled(settings.backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                     Button {
                         showJoinFamily = true
@@ -168,6 +205,7 @@ struct FriendsFamilyView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
+                    .disabled(settings.backendBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
             }
@@ -277,8 +315,17 @@ struct FriendsFamilyView: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                ShareLink(item: family.inviteLink(baseURL: settings.backendBaseURL)) {
-                                    Label("Invite", systemImage: "square.and.arrow.up")
+                                if let inviteURL = family.inviteLink(baseURL: settings.backendBaseURL) {
+                                    ShareLink(item: inviteURL) {
+                                        Label("Invite", systemImage: "square.and.arrow.up")
+                                    }
+                                } else {
+                                    Button {
+                                        openYouTabForBackendSettings()
+                                    } label: {
+                                        Label("Set URL to share", systemImage: "link.badge.plus")
+                                    }
+                                    .font(.caption.weight(.semibold))
                                 }
                                 Button {
                                     UIPasteboard.general.string = family.inviteCode
@@ -351,6 +398,10 @@ struct FriendsFamilyView: View {
         session.addFriend(friend)
     }
 
+    private func openYouTabForBackendSettings() {
+        NotificationCenter.default.post(name: .fmfOpenYouTabForBackend, object: nil)
+    }
+
     private func createFamilyRemote() {
         let name = familyName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
@@ -375,7 +426,10 @@ struct FriendsFamilyView: View {
             } catch {
                 await MainActor.run {
                     isSubmitting = false
-                    errorMessage = error.localizedDescription
+                    errorMessage = BackendConnectionHint.friendlyMessage(
+                        for: error,
+                        baseURL: settings.backendBaseURL
+                    )
                     showError = true
                 }
             }
@@ -406,7 +460,10 @@ struct FriendsFamilyView: View {
             } catch {
                 await MainActor.run {
                     isSubmitting = false
-                    errorMessage = error.localizedDescription
+                    errorMessage = BackendConnectionHint.friendlyMessage(
+                        for: error,
+                        baseURL: settings.backendBaseURL
+                    )
                     showError = true
                 }
             }
