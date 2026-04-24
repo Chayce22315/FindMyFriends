@@ -35,12 +35,21 @@ final class BackendClient {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
-    init(baseURLString: String, session: URLSession = .shared) throws {
+    /// Render free tier cold starts can exceed default ~60s resource timeout; invite flows need patience.
+    private static let inviteSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 75
+        config.timeoutIntervalForResource = 120
+        config.waitsForConnectivity = true
+        return URLSession(configuration: config)
+    }()
+
+    init(baseURLString: String, session: URLSession? = nil) throws {
         guard let url = BackendClient.normalizeBaseURL(baseURLString) else {
             throw BackendClientError.invalidBaseURL
         }
         self.baseURL = url
-        self.session = session
+        self.session = session ?? Self.inviteSession
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
         self.decoder.dateDecodingStrategy = .iso8601
@@ -85,6 +94,10 @@ final class BackendClient {
         }
 
         throw BackendClientError.invalidResponse
+    }
+
+    static func normalizedInviteServerBaseURL(_ value: String) -> URL? {
+        normalizeBaseURL(value)
     }
 
     private static func normalizeBaseURL(_ value: String) -> URL? {

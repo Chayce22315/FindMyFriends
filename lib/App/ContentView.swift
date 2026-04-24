@@ -1,5 +1,10 @@
 import SwiftUI
 
+extension Notification.Name {
+    /// Switch to the You tab to set the invite server URL.
+    static let fmfOpenYouTabForBackend = Notification.Name("fmf.openYouTab.backend")
+}
+
 struct ContentView: View {
     @State private var tab: Tab = .map
 
@@ -46,5 +51,8 @@ struct ContentView: View {
                 .tag(Tab.you)
         }
         .tint(AppTheme.accent)
+        .onReceive(NotificationCenter.default.publisher(for: .fmfOpenYouTabForBackend)) { _ in
+            tab = .you
+        }
     }
 }
