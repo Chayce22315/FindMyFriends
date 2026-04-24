@@ -5,9 +5,21 @@ const path = require("path");
 const crypto = require("crypto");
 
 const PORT = Number(process.env.PORT || 4000);
+
+function defaultBaseUrlFromEnv() {
+  const render = process.env.RENDER_EXTERNAL_URL;
+  if (render && String(render).trim()) {
+    return normalizeBaseUrl(render);
+  }
+  return `http://localhost:${PORT}`;
+}
+
 const BASE_URL = normalizeBaseUrl(
-  process.env.BASE_URL || `http://localhost:${PORT}`
+  process.env.BASE_URL || defaultBaseUrlFromEnv()
 );
+
+/** Optional: HTTPS link to IPA, TestFlight, or App Store for the invite landing page. */
+const APP_INSTALL_URL = String(process.env.APP_INSTALL_URL || "").trim();
 
 const DATA_DIR = path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "families.json");
@@ -15,6 +27,19 @@ const DATA_FILE = path.join(DATA_DIR, "families.json");
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "256kb" }));
+
+/** Swift JSONDecoder.iso8601 rejects fractional seconds. */
+function toISO8601NoFraction(date) {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 function normalizeBaseUrl(url) {
   if (!url) {
@@ -99,7 +124,7 @@ app.post("/api/families", (req, res) => {
     name,
     inviteCode,
     inviteUrl: buildInviteUrl(inviteCode),
-    createdAt: new Date().toISOString(),
+    createdAt: toISO8601NoFraction(new Date()),
   };
 
   store.families.push(family);
@@ -141,12 +166,25 @@ app.get("/invite/:code", (req, res) => {
     return res.status(404).send("Invite not found.");
   }
 
+  const safeName = escapeHtml(family.name);
+  const pageUrl = `${BASE_URL}/invite/${encodeURIComponent(family.inviteCode)}`;
+  const deepLink =
+    `findmyfriends://join?family=${encodeURIComponent(family.inviteCode)}`
+    + `&api=${encodeURIComponent(BASE_URL)}`;
+  const installBlock = APP_INSTALL_URL
+    ? `<p style="margin-top:20px"><a class="btn secondary" href="${escapeHtml(APP_INSTALL_URL)}">Get the app (install)</a></p>
+       <p class="hint">Sideload or TestFlight: open this link on your iPhone, install, then return here and tap <strong>Open in app</strong>.</p>`
+    : `<p class="hint">Install Find My Friends on this phone (sideload or TestFlight), then tap <strong>Open in app</strong>. Ask the organizer for the install link, or set <code>APP_INSTALL_URL</code> on the server.</p>`;
+
   res.type("html").send(`<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Join ${family.name}</title>
+  <title>Join ${safeName}</title>
+  <meta property="og:title" content="Join ${safeName} on Find My Friends" />
+  <meta property="og:description" content="Tap Open in app to join this family, or use the invite code." />
+  <meta property="og:url" content="${escapeHtml(pageUrl)}" />
   <style>
     body { font-family: -apple-system, Segoe UI, sans-serif; background:#0b0f1b; color:#f5f7ff; margin:0; }
     .wrap { max-width: 520px; margin: 40px auto; padding: 24px; }
@@ -154,21 +192,32 @@ app.get("/invite/:code", (req, res) => {
     h1 { font-size: 28px; margin: 0 0 12px; }
     p { color: #c4cbe1; line-height: 1.5; }
     .code { font-size: 24px; letter-spacing: 4px; font-weight: 700; margin: 16px 0; }
+    .btn { display:inline-block; margin-top:8px; padding:14px 22px; border-radius:14px; font-weight:700; text-decoration:none; }
+    .btn.primary { background: linear-gradient(135deg,#5b8cff,#8b5cf6); color:#fff; }
+    .btn.secondary { background: #2a334d; color:#e8ecff; border:1px solid #3d4a6b; }
+    .hint { font-size: 14px; color: #8b95b8; margin-top: 12px; }
+    code { font-size: 13px; background:#0b0f1b; padding:2px 6px; border-radius:6px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>Join ${family.name}</h1>
-      <p>Open Find My Friends and use this invite code to join.</p>
+      <h1>Join ${safeName}</h1>
+      <p>One link for everyone: install the app if needed, then open the family invite.</p>
+      <a class="btn primary" href="${escapeHtml(deepLink)}">Open in app</a>
+      ${installBlock}
+      <p style="margin-top:24px">Or open Find My Friends → Circle → Join and enter:</p>
       <div class="code">${family.inviteCode}</div>
-      <p>If you already have the app open, tap Join and paste the code.</p>
+      <p class="hint">Share this page: <a href="${escapeHtml(pageUrl)}" style="color:#9db7ff">${escapeHtml(pageUrl)}</a></p>
     </div>
   </div>
 </body>
 </html>`);
 });
 
-app.listen(PORT, () => {
-  console.log(`FindMyFriends backend running on ${BASE_URL}`);
+const HOST = process.env.HOST || "0.0.0.0";
+
+app.listen(PORT, HOST, () => {
+  console.log(`FindMyFriends backend listening on http://${HOST}:${PORT}`);
+  console.log(`Public BASE_URL (invite links): ${BASE_URL}`);
 });

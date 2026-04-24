@@ -43,6 +43,9 @@ struct FindMyFriendsApp: App {
                 .environmentObject(music)
                 .environmentObject(liveActivity)
                 .preferredColorScheme(.dark)
+                .onOpenURL { url in
+                    InviteDeepLink.handle(url, settings: settings)
+                }
         }
     }
 }
