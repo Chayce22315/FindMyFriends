@@ -6,6 +6,9 @@ struct FriendsFamilyView: View {
     @EnvironmentObject private var contacts: ContactsFriendService
     @EnvironmentObject private var settings: AppSettings
 
+    /// Cleared after handling; set from `findmyfriends://join?...` via `ContentView`.
+    @Binding var pendingInviteFromDeepLink: String?
+
     @State private var segment = 0
     @State private var showCreateFamily = false
     @State private var showJoinFamily = false
@@ -14,6 +17,7 @@ struct FriendsFamilyView: View {
     @State private var isSubmitting = false
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var shouldAutoSubmitJoinFromDeepLink = false
 
     var body: some View {
         NavigationStack {
@@ -113,6 +117,26 @@ struct FriendsFamilyView: View {
             .onAppear {
                 if contacts.authorizationStatus == .authorized {
                     contacts.reloadContacts()
+                }
+            }
+            .onChange(of: pendingInviteFromDeepLink) { _, newValue in
+                guard let raw = newValue?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return }
+                guard !session.hasFamily else {
+                    pendingInviteFromDeepLink = nil
+                    return
+                }
+                let code = raw.uppercased()
+                pendingInviteFromDeepLink = nil
+                joinCode = code
+                shouldAutoSubmitJoinFromDeepLink = true
+                showJoinFamily = true
+            }
+            .onChange(of: showJoinFamily) { _, isPresented in
+                guard isPresented, shouldAutoSubmitJoinFromDeepLink else { return }
+                shouldAutoSubmitJoinFromDeepLink = false
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    joinFamilyRemote()
                 }
             }
         }

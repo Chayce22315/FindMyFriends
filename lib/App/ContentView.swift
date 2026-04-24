@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var tab: Tab = .map
+    /// Set when user opens `findmyfriends://join?...` from the invite web page; Circle consumes it to join.
+    @State private var pendingFamilyInviteCode: String?
 
     private enum Tab: Hashable {
         case map, places, trips, circle, move, you
@@ -27,7 +29,7 @@ struct ContentView: View {
                 }
                 .tag(Tab.trips)
 
-            FriendsFamilyView()
+            FriendsFamilyView(pendingInviteFromDeepLink: $pendingFamilyInviteCode)
                 .tabItem {
                     Label("Circle", systemImage: "person.2.fill")
                 }
@@ -46,5 +48,10 @@ struct ContentView: View {
                 .tag(Tab.you)
         }
         .tint(AppTheme.accent)
+        .onReceive(NotificationCenter.default.publisher(for: .fmfOpenFamilyJoin)) { notification in
+            guard let code = notification.userInfo?["code"] as? String else { return }
+            pendingFamilyInviteCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            tab = .circle
+        }
     }
 }
