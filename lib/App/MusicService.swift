@@ -4,7 +4,6 @@ import MusicKit
 
 struct MusicTrack: Identifiable, Hashable, Codable {
     let id: UUID
-    /// Set for on-device library tracks so we can queue playback.
     let libraryPersistentID: UInt64?
     let title: String
     let artist: String
@@ -26,9 +25,12 @@ final class MusicService: ObservableObject {
     @Published private(set) var recentlyPlayed: [MusicTrack] = []
     @Published private(set) var recommendations: [MusicTrack] = []
     @Published private(set) var topArtists: [MusicArtist] = []
+    /// From Apple Music subscription / cloud (MusicKit), not the downloaded-library query.
+    @Published private(set) var appleMusicRecentSongs: [Song] = []
     @Published private(set) var playbackMessage: String?
 
-    private var didLoadInsights = false
+    private var didLoadLibraryInsights = false
+    private var didLoadCatalogRecent = false
 
     var isAuthorized: Bool { status == .authorized }
     var isLibraryAuthorized: Bool { libraryStatus == .authorized }
@@ -36,8 +38,6 @@ final class MusicService: ObservableObject {
     func refreshStatus() {
         status = MusicAuthorization.currentStatus
         libraryStatus = MPMediaLibrary.authorizationStatus()
-        didLoadInsights = false
-        loadInsightsIfNeeded()
     }
 
     func requestAccess() async {
@@ -46,19 +46,70 @@ final class MusicService: ObservableObject {
         await MainActor.run {
             status = newStatus
             libraryStatus = newLibraryStatus
-            didLoadInsights = false
-            loadInsightsIfNeeded()
+            didLoadLibraryInsights = false
+            didLoadCatalogRecent = false
+        }
+        await reloadAllInsights()
+    }
+
+    /// Call after connect or when Move tab appears.
+    func reloadAllInsights() async {
+        await MainActor.run {
+            didLoadLibraryInsights = false
+            didLoadCatalogRecent = false
+        }
+        await loadCatalogRecentlyPlayedIfNeeded()
+        await MainActor.run {
+            loadLibraryInsightsIfNeeded()
         }
     }
 
-    func loadInsightsIfNeeded() {
+    func loadLibraryInsightsIfNeeded() {
         guard isAuthorized else { return }
-        guard !didLoadInsights else { return }
-        didLoadInsights = true
+        guard !didLoadLibraryInsights else { return }
+        didLoadLibraryInsights = true
         if isLibraryAuthorized {
-            loadLibraryInsights()
+            loadLibraryInsightsFromMediaPlayer()
         } else {
             loadMockInsights()
+        }
+    }
+
+    private func loadCatalogRecentlyPlayedIfNeeded() async {
+        guard isAuthorized else { return }
+        guard !didLoadCatalogRecent else { return }
+        didLoadCatalogRecent = true
+        do {
+            let request = MusicRecentlyPlayedRequest<Song>()
+            let response = try await request.response()
+            await MainActor.run {
+                appleMusicRecentSongs = Array(response.items.prefix(20))
+                if appleMusicRecentSongs.isEmpty {
+                    playbackMessage = "No Apple Music plays yet — stream a song in Music, then tap Refresh."
+                }
+            }
+        } catch {
+            await MainActor.run {
+                appleMusicRecentSongs = []
+                playbackMessage = error.localizedDescription
+            }
+        }
+    }
+
+    /// Play a catalog `Song` from Apple Music (needs subscription + MusicKit auth).
+    func playAppleMusicSong(_ song: Song) async {
+        await MainActor.run { playbackMessage = nil }
+        guard isAuthorized else {
+            await MainActor.run { playbackMessage = "Connect Apple Music first." }
+            return
+        }
+        do {
+            let player = SystemMusicPlayer.shared
+            player.queue = [song]
+            try await player.play()
+            await MainActor.run { playbackMessage = "Playing \(song.title)" }
+        } catch {
+            await MainActor.run { playbackMessage = error.localizedDescription }
         }
     }
 
@@ -70,7 +121,7 @@ final class MusicService: ObservableObject {
         }
     }
 
-    private func loadLibraryInsights() {
+    private func loadLibraryInsightsFromMediaPlayer() {
         DispatchQueue.global(qos: .userInitiated).async {
             let songs = MPMediaQuery.songs().items ?? []
             let recent = songs
@@ -126,7 +177,6 @@ final class MusicService: ObservableObject {
         )
     }
 
-    /// Plays one library track by persistent ID (requires Music + Media Library access).
     func playLibraryTrack(_ track: MusicTrack) {
         playbackMessage = nil
         guard isAuthorized else {
@@ -134,11 +184,11 @@ final class MusicService: ObservableObject {
             return
         }
         guard isLibraryAuthorized else {
-            playbackMessage = "Allow Media Library access to play your songs."
+            playbackMessage = "Allow Media Library in Settings to play downloaded library songs."
             return
         }
         guard let pid = track.libraryPersistentID else {
-            playbackMessage = "This row is a preview — connect with a real library to play."
+            playbackMessage = "This row is a preview — use real library data to play."
             return
         }
         let pred = MPMediaPropertyPredicate(value: NSNumber(value: pid), forProperty: MPMediaItemPropertyPersistentID)
@@ -154,11 +204,10 @@ final class MusicService: ObservableObject {
         playbackMessage = "Playing \(track.title)"
     }
 
-    /// Shuffles a short queue of songs by this artist from your library.
     func playLibraryArtist(_ artist: MusicArtist) {
         playbackMessage = nil
         guard isAuthorized, isLibraryAuthorized else {
-            playbackMessage = "Connect Apple Music and allow library access."
+            playbackMessage = "Connect Apple Music and allow Media Library access."
             return
         }
         let name = artist.name
@@ -259,5 +308,25 @@ final class MusicService: ObservableObject {
         @unknown default:
             return "Unknown"
         }
+    }
+
+    var libraryStatusLabel: String {
+        switch libraryStatus {
+        case .authorized:
+            return "Library allowed"
+        case .denied:
+            return "Library denied"
+        case .notDetermined:
+            return "Library not asked"
+        case .restricted:
+            return "Library restricted"
+        @unknown default:
+            return "Library unknown"
+        }
+    }
+
+    /// Backwards-compatible entry for views that only refreshed library insights before.
+    func loadInsightsIfNeeded() {
+        Task { await reloadAllInsights() }
     }
 }

@@ -1,3 +1,4 @@
+import MusicKit
 import SwiftUI
 import UIKit
 
@@ -154,9 +155,14 @@ struct FitnessDashboardView: View {
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                 } else if !health.isAuthorized {
-                                    Text("Connect Apple Health to pull real steps and active energy.")
+                                    Text("Tap Connect, then turn on Steps and Active Energy in the Health sheet.")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
+                                }
+                                if let err = health.lastHealthError, !err.isEmpty {
+                                    Text(err)
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
                                 }
                             }
                         }
@@ -187,12 +193,67 @@ struct FitnessDashboardView: View {
                                 .buttonStyle(.bordered)
                                 .controlSize(.large)
 
-                                Text("Status: \(music.statusLabel)")
+                                Text("Apple Music: \(music.statusLabel)")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                                Text("Media Library: \(music.libraryStatusLabel) — needed for downloaded songs on device.")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                Button {
+                                    Task { await music.requestAccess() }
+                                } label: {
+                                    Label("Refresh music & library", systemImage: "arrow.clockwise")
+                                        .font(.caption.weight(.semibold))
+                                }
+                                .buttonStyle(.bordered)
                             }
                         }
                         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+
+                        if music.isAuthorized {
+                            GlassCard {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    SectionHeader(
+                                        title: "Recently played (Apple Music)",
+                                        subtitle: "From your subscription — tap to play in the Music app."
+                                    )
+                                    if music.appleMusicRecentSongs.isEmpty {
+                                        Text("Play something in Apple Music, then tap Refresh above.")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        ForEach(music.appleMusicRecentSongs, id: \.id) { song in
+                                            Button {
+                                                Task { await music.playAppleMusicSong(song) }
+                                            } label: {
+                                                HStack {
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        Text(song.title)
+                                                            .font(.body.weight(.medium))
+                                                            .foregroundStyle(.primary)
+                                                        if let a = song.artists.first?.name {
+                                                            Text(a)
+                                                                .font(.caption)
+                                                                .foregroundStyle(.secondary)
+                                                        }
+                                                    }
+                                                    Spacer()
+                                                    Image(systemName: "play.circle.fill")
+                                                        .font(.title2)
+                                                        .foregroundStyle(AppTheme.accent)
+                                                }
+                                                .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(.plain)
+                                            if song.id != music.appleMusicRecentSongs.last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+                        }
 
                         GlassCard {
                             VStack(alignment: .leading, spacing: 12) {
@@ -229,71 +290,75 @@ struct FitnessDashboardView: View {
                         }
                         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
 
-                        if music.isAuthorized, music.isLibraryAuthorized {
+                        if music.isAuthorized {
                             GlassCard {
                                 VStack(alignment: .leading, spacing: 14) {
                                     SectionHeader(
-                                        title: "Play from your library",
-                                        subtitle: "Recently played tracks and artists you listen to (on-device library)."
+                                        title: "Your library (on device)",
+                                        subtitle: music.isLibraryAuthorized
+                                            ? "Downloaded or synced songs — tap to play."
+                                            : "Allow Media Library in Settings to see songs stored on this iPhone."
                                     )
-                                    if !music.recentlyPlayed.isEmpty {
-                                        Text("Recently played")
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(.secondary)
-                                        ForEach(music.recentlyPlayed.prefix(6)) { track in
-                                            Button {
-                                                music.playLibraryTrack(track)
-                                            } label: {
-                                                HStack {
-                                                    VStack(alignment: .leading, spacing: 2) {
-                                                        Text(track.title)
-                                                            .font(.body.weight(.medium))
-                                                            .foregroundStyle(.primary)
-                                                        Text(track.artist)
-                                                            .font(.caption)
-                                                            .foregroundStyle(.secondary)
+                                    if music.isLibraryAuthorized {
+                                        if !music.recentlyPlayed.isEmpty {
+                                            Text("Recently played (library)")
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(.secondary)
+                                            ForEach(music.recentlyPlayed.prefix(6)) { track in
+                                                Button {
+                                                    music.playLibraryTrack(track)
+                                                } label: {
+                                                    HStack {
+                                                        VStack(alignment: .leading, spacing: 2) {
+                                                            Text(track.title)
+                                                                .font(.body.weight(.medium))
+                                                                .foregroundStyle(.primary)
+                                                            Text(track.artist)
+                                                                .font(.caption)
+                                                                .foregroundStyle(.secondary)
+                                                        }
+                                                        Spacer()
+                                                        Image(systemName: "play.circle.fill")
+                                                            .font(.title2)
+                                                            .foregroundStyle(AppTheme.accent)
                                                     }
-                                                    Spacer()
-                                                    Image(systemName: "play.circle.fill")
-                                                        .font(.title2)
-                                                        .foregroundStyle(AppTheme.accent)
+                                                    .contentShape(Rectangle())
                                                 }
-                                                .contentShape(Rectangle())
-                                            }
-                                            .buttonStyle(.plain)
-                                            if track.id != music.recentlyPlayed.prefix(6).last?.id {
-                                                Divider()
+                                                .buttonStyle(.plain)
+                                                if track.id != music.recentlyPlayed.prefix(6).last?.id {
+                                                    Divider()
+                                                }
                                             }
                                         }
-                                    }
-                                    if !music.topArtists.isEmpty {
-                                        Text("Artists you play")
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(.secondary)
-                                            .padding(.top, 8)
-                                        ForEach(music.topArtists.prefix(6)) { artist in
-                                            Button {
-                                                music.playLibraryArtist(artist)
-                                            } label: {
-                                                HStack {
-                                                    VStack(alignment: .leading, spacing: 2) {
-                                                        Text(artist.name)
-                                                            .font(.body.weight(.medium))
-                                                            .foregroundStyle(.primary)
-                                                        Text("Top: \(artist.topSong) · \(artist.plays) plays in library")
-                                                            .font(.caption)
-                                                            .foregroundStyle(.secondary)
+                                        if !music.topArtists.isEmpty {
+                                            Text("Artists in your library")
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(.secondary)
+                                                .padding(.top, 8)
+                                            ForEach(music.topArtists.prefix(6)) { artist in
+                                                Button {
+                                                    music.playLibraryArtist(artist)
+                                                } label: {
+                                                    HStack {
+                                                        VStack(alignment: .leading, spacing: 2) {
+                                                            Text(artist.name)
+                                                                .font(.body.weight(.medium))
+                                                                .foregroundStyle(.primary)
+                                                            Text("Top: \(artist.topSong) · \(artist.plays) plays in library")
+                                                                .font(.caption)
+                                                                .foregroundStyle(.secondary)
+                                                        }
+                                                        Spacer()
+                                                        Image(systemName: "shuffle.circle.fill")
+                                                            .font(.title2)
+                                                            .foregroundStyle(AppTheme.accentSecondary)
                                                     }
-                                                    Spacer()
-                                                    Image(systemName: "shuffle.circle.fill")
-                                                        .font(.title2)
-                                                        .foregroundStyle(AppTheme.accentSecondary)
+                                                    .contentShape(Rectangle())
                                                 }
-                                                .contentShape(Rectangle())
-                                            }
-                                            .buttonStyle(.plain)
-                                            if artist.id != music.topArtists.prefix(6).last?.id {
-                                                Divider()
+                                                .buttonStyle(.plain)
+                                                if artist.id != music.topArtists.prefix(6).last?.id {
+                                                    Divider()
+                                                }
                                             }
                                         }
                                     }

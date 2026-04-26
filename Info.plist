@@ -26,6 +26,8 @@
     <string>FindMyFriends does not write health data; this key is required when requesting Health access.</string>
     <key>NSAppleMusicUsageDescription</key>
     <string>Connect Apple Music to play your workout soundtrack while you move.</string>
+    <key>NSMediaLibraryUsageDescription</key>
+    <string>Show songs and artists you have played from your on-device music library.</string>
     <key>NSSupportsLiveActivities</key>
     <true/>
     <key>UIBackgroundModes</key>

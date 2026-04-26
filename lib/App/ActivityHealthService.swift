@@ -8,8 +8,7 @@ final class ActivityHealthService: ObservableObject {
     @Published private(set) var isAuthorized: Bool = false
     @Published private(set) var authorizationStatus: HKAuthorizationStatus = .notDetermined
     @Published private(set) var healthDataAvailable: Bool = HKHealthStore.isHealthDataAvailable()
-    /// True once HealthKit reports the read prompt is no longer needed (user has responded or already allowed).
-    @Published private(set) var readAuthorizationResolved: Bool = false
+    @Published private(set) var lastHealthError: String?
 
     /// Goals for ring UI
     let stepGoal: Int = 10_000
@@ -23,12 +22,9 @@ final class ActivityHealthService: ObservableObject {
            let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) {
             let status = store.authorizationStatus(for: stepType)
             updateAuthorizationStatus(status)
-            refreshReadRequestStatus { [weak self] in
-                guard let self else { return }
-                if self.isHealthReadUnlocked {
-                    self.registerStepObserver()
-                    self.refreshToday()
-                }
+            if isHealthReadUnlocked {
+                registerStepObserver()
+                refreshToday()
             }
         }
     }
@@ -40,26 +36,22 @@ final class ActivityHealthService: ObservableObject {
         else { return }
 
         let read: Set<HKObjectType> = [stepType, energyType]
-        store.requestAuthorization(toShare: [], read: read) { [weak self] _, _ in
+        store.requestAuthorization(toShare: [], read: read) { [weak self] ok, error in
             DispatchQueue.main.async {
+                self?.lastHealthError = error?.localizedDescription
                 self?.updateAuthorizationStatus()
-                self?.refreshReadRequestStatus {
-                    guard let self else { return }
-                    if self.isHealthReadUnlocked {
-                        self.registerStepObserver()
-                        self.refreshToday()
-                    }
+                if self?.isHealthReadUnlocked == true {
+                    self?.registerStepObserver()
+                    self?.refreshToday()
                 }
             }
         }
     }
 
-    /// Re-checks whether the Health read prompt is resolved, then reloads today’s samples if allowed.
+    /// Re-check authorization and reload today’s samples.
     func refreshAuthorizationAndData() {
         updateAuthorizationStatus()
-        refreshReadRequestStatus { [weak self] in
-            self?.refreshToday()
-        }
+        refreshToday()
     }
 
     func refreshToday() {
@@ -73,16 +65,22 @@ final class ActivityHealthService: ObservableObject {
 
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: Date())
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: Date(), options: .strictStartDate)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: Date(), options: [])
 
-        let stepQuery = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
+        let stepQuery = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, error in
+            if let error {
+                DispatchQueue.main.async { self?.lastHealthError = error.localizedDescription }
+            }
             let steps = result?.sumQuantity()?.doubleValue(for: HKUnit.count()) ?? 0
             DispatchQueue.main.async {
                 self?.stepsToday = Int(steps)
             }
         }
 
-        let energyQuery = HKStatisticsQuery(quantityType: energyType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, _ in
+        let energyQuery = HKStatisticsQuery(quantityType: energyType, quantitySamplePredicate: predicate, options: .cumulativeSum) { [weak self] _, result, error in
+            if let error {
+                DispatchQueue.main.async { self?.lastHealthError = error.localizedDescription }
+            }
             let kcal = result?.sumQuantity()?.doubleValue(for: HKUnit.kilocalorie()) ?? 0
             DispatchQueue.main.async {
                 self?.activeCalories = kcal
@@ -126,34 +124,13 @@ final class ActivityHealthService: ObservableObject {
         status == .sharingDenied
     }
 
-    /// Read queries are allowed (not explicitly denied) and the user has completed the read prompt (or already had).
+    /// For **read** types Apple often leaves status `.notDetermined` even after the user allows reading.
+    /// Treat only explicit **denial** as blocked so Health queries can run after authorization.
     var isHealthReadUnlocked: Bool {
-        !isReadAccessDenied(authorizationStatus) && readAuthorizationResolved
+        !isReadAccessDenied(authorizationStatus)
     }
 
     private func recomputeIsAuthorized() {
         isAuthorized = isHealthReadUnlocked
-    }
-
-    func refreshReadRequestStatus(completion: (() -> Void)? = nil) {
-        guard healthDataAvailable,
-              let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount),
-              let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)
-        else {
-            completion?()
-            return
-        }
-        let read: Set<HKObjectType> = [stepType, energyType]
-        store.getRequestStatusForAuthorization(toShare: [], read: read) { [weak self] requestStatus, _ in
-            DispatchQueue.main.async {
-                guard let self else {
-                    completion?()
-                    return
-                }
-                self.readAuthorizationResolved = (requestStatus == .unnecessary)
-                self.recomputeIsAuthorized()
-                completion?()
-            }
-        }
     }
 }
