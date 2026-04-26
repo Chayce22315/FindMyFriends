@@ -37,9 +37,11 @@ final class MusicService: ObservableObject {
     @Published private(set) var appleMusicRecentSongs: [Song] = []
     /// Live line from Music app / system music player (updates via notifications + timer).
     @Published private(set) var liveNowPlaying: LivePlaybackLine?
-    /// Last track before the current one changed (e.g. after skipping or auto-advance).
-    @Published private(set) var livePreviousTrack: LivePlaybackLine?
+    /// Tracks that were playing before each transition (newest first), not replaced when the song changes.
+    @Published private(set) var livePlaybackHistory: [LivePlaybackLine] = []
     @Published private(set) var playbackMessage: String?
+
+    private let maxLivePlaybackHistoryCount: Int = 50
 
     private var didLoadLibraryInsights = false
     private var didLoadCatalogRecent = false
@@ -148,7 +150,7 @@ final class MusicService: ObservableObject {
             await MainActor.run {
                 appleMusicRecentSongs = Array(response.items.prefix(20))
                 if appleMusicRecentSongs.isEmpty {
-                    playbackMessage = "Apple Music has no recent plays on record yet — live “Now playing” below still follows the Music app."
+                    playbackMessage = "Apple Music has no recent plays on record yet — use the Music tab for live playback from the Music app."
                 } else {
                     playbackMessage = nil
                 }
@@ -196,7 +198,11 @@ final class MusicService: ObservableObject {
         MPMusicPlayerController.systemMusicPlayer.endGeneratingPlaybackNotifications()
     }
 
-    /// Reads system + MusicKit players and updates `liveNowPlaying` / `livePreviousTrack`.
+    func clearLivePlaybackHistory() {
+        livePlaybackHistory = []
+    }
+
+    /// Reads system + MusicKit players and updates `liveNowPlaying` / `livePlaybackHistory`.
     func refreshLivePlaybackFromPlayers() {
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -207,8 +213,8 @@ final class MusicService: ObservableObject {
 
     private func applyLiveLineTransition(to newLine: LivePlaybackLine?) {
         guard let newLine else {
-            if liveNowPlaying != nil {
-                livePreviousTrack = liveNowPlaying
+            if let current = liveNowPlaying {
+                prependToLiveHistoryIfNew(current)
             }
             liveNowPlaying = nil
             return
@@ -217,9 +223,18 @@ final class MusicService: ObservableObject {
             return
         }
         if let current = liveNowPlaying {
-            livePreviousTrack = current
+            prependToLiveHistoryIfNew(current)
         }
         liveNowPlaying = newLine
+    }
+
+    private func prependToLiveHistoryIfNew(_ line: LivePlaybackLine) {
+        guard livePlaybackHistory.first?.id != line.id else { return }
+        var next = [line] + livePlaybackHistory.filter { $0.id != line.id }
+        if next.count > maxLivePlaybackHistoryCount {
+            next = Array(next.prefix(maxLivePlaybackHistoryCount))
+        }
+        livePlaybackHistory = next
     }
 
     private static func pickBestLiveLine() -> LivePlaybackLine? {

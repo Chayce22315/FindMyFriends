@@ -279,16 +279,6 @@ struct ProfileProgressView: View {
                                 }
                                 .buttonStyle(.plain)
 
-                                if music.isAuthorized {
-                                    Divider()
-
-                                    NavigationLink {
-                                        MusicInsightsView()
-                                    } label: {
-                                        MoreLinkRow(icon: "music.note.list", title: "Music Insights", subtitle: "Recently played and recommendations.")
-                                    }
-                                    .buttonStyle(.plain)
-                                }
                             }
                         }
                         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)

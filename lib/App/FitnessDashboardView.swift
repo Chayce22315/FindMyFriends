@@ -1,14 +1,11 @@
-import MusicKit
 import SwiftUI
 import UIKit
 
 struct FitnessDashboardView: View {
     @EnvironmentObject private var health: ActivityHealthService
     @EnvironmentObject private var progress: UserProgressStore
-    @EnvironmentObject private var music: MusicService
 
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.openURL) private var openURL
 
     private var approxDistanceKm: Double {
         Double(health.stepsToday) * 0.000762
@@ -55,14 +52,6 @@ struct FitnessDashboardView: View {
                         heroHeader
                         ringsCard
                         healthCard
-                        musicConnectCard
-                        if music.isAuthorized {
-                            appleMusicRecentsCard
-                        }
-                        musicVibesCard
-                        if music.isAuthorized {
-                            libraryMusicCard
-                        }
                         weekCard
                         xpCard
                         goalsCard
@@ -76,19 +65,10 @@ struct FitnessDashboardView: View {
             .onAppear {
                 health.refreshAuthorizationAndData()
                 progress.syncXPFromSteps(health.stepsToday)
-                music.refreshStatus()
-                music.loadInsightsIfNeeded()
-                music.beginLivePlaybackUpdates()
-            }
-            .onDisappear {
-                music.endLivePlaybackUpdates()
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     health.refreshAuthorizationAndData()
-                    music.refreshStatus()
-                    music.loadInsightsIfNeeded()
-                    music.refreshLivePlaybackFromPlayers()
                 }
             }
             .onChange(of: health.stepsToday) { _, newValue in
@@ -184,267 +164,6 @@ struct FitnessDashboardView: View {
             }
         }
         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
-    }
-
-    @ViewBuilder
-    private var musicConnectCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 16) {
-                SectionHeader(title: "Music", subtitle: "Connect Apple Music for your move sessions.")
-                Button {
-                    Task {
-                        if music.isAuthorized {
-                            if let url = URL(string: "music://") {
-                                openURL(url)
-                            }
-                        } else {
-                            await music.requestAccess()
-                        }
-                    }
-                } label: {
-                    Label(
-                        music.isAuthorized ? "Open Apple Music" : "Connect Apple Music",
-                        systemImage: "music.note"
-                    )
-                    .font(.body.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-
-                Text("Apple Music: \(music.statusLabel)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text("Media Library: \(music.libraryStatusLabel) — needed for downloaded songs on device.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                Button {
-                    Task { await music.forceReloadMusicInsights() }
-                } label: {
-                    Label("Refresh music & library", systemImage: "arrow.clockwise")
-                        .font(.caption.weight(.semibold))
-                }
-                .buttonStyle(.bordered)
-                if let msg = music.playbackMessage, !msg.isEmpty {
-                    Text(msg)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-            }
-        }
-        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
-    }
-
-    @ViewBuilder
-    private var appleMusicRecentsCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionHeader(
-                    title: "Recently played (Apple Music)",
-                    subtitle: "Now playing updates live. The track before the last change appears under the current one. Cloud list refreshes when you tap Refresh."
-                )
-                if let now = music.liveNowPlaying {
-                    Text("Now playing")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    livePlaybackLineRow(now, icon: "waveform")
-                    if let prev = music.livePreviousTrack {
-                        Text("Previous")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 6)
-                        livePlaybackLineRow(prev, icon: "backward.end.fill")
-                    }
-                }
-                if !music.appleMusicRecentSongs.isEmpty {
-                    Text("Recent from Apple Music (catalog)")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, music.liveNowPlaying == nil ? 0 : 10)
-                    ForEach(music.appleMusicRecentSongs) { song in
-                        appleMusicSongRow(song)
-                    }
-                }
-                if music.liveNowPlaying == nil, music.appleMusicRecentSongs.isEmpty {
-                    Text("Open the Music app and start playback — the current track appears here without tapping Refresh. If catalog features show a developer token error, sideload signing may not support MusicKit; live playback from the Music app can still work.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
-    }
-
-    @ViewBuilder
-    private func appleMusicSongRow(_ song: Song) -> some View {
-        Button {
-            Task { await music.playAppleMusicSong(song) }
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(song.title)
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(.primary)
-                    if let a = song.artists?.first?.name {
-                        Text(a)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                Image(systemName: "play.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(AppTheme.accent)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    private func livePlaybackLineRow(_ line: LivePlaybackLine, icon: String) -> some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(line.title)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.primary)
-                Text(line.artist)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(AppTheme.accent)
-        }
-    }
-
-    @ViewBuilder
-    private var musicVibesCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionHeader(title: "Music Vibes", subtitle: "Quick picks for the next session.")
-                if music.isAuthorized, !music.recommendations.isEmpty {
-                    ForEach(Array(music.recommendations.prefix(2))) { track in
-                        HStack(spacing: 12) {
-                            Image(systemName: "music.note")
-                                .font(.title3)
-                                .foregroundStyle(AppTheme.accent)
-                                .frame(width: 28)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(track.title)
-                                    .font(.headline)
-                                Text("\(track.artist) - \(track.duration)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Text(track.hapticsAllowed ? "Haptics On" : "Haptics Off")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(track.hapticsAllowed ? AppTheme.accentSecondary : .secondary)
-                        }
-                    }
-                } else {
-                    Text("Connect Apple Music to unlock personalized picks.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
-    }
-
-    @ViewBuilder
-    private var libraryMusicCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 14) {
-                SectionHeader(
-                    title: "Your library (on device)",
-                    subtitle: music.isLibraryAuthorized
-                        ? "Downloaded or synced songs — tap to play."
-                        : "Allow Media Library in Settings to see songs stored on this iPhone."
-                )
-                if music.isLibraryAuthorized {
-                    libraryRecentSection
-                    libraryArtistsSection
-                }
-                if let msg = music.playbackMessage {
-                    Text(msg)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 4)
-                }
-            }
-        }
-        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
-    }
-
-    @ViewBuilder
-    private var libraryRecentSection: some View {
-        Group {
-            if !music.recentlyPlayed.isEmpty {
-                Text("Recently played (library)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                ForEach(Array(music.recentlyPlayed.prefix(6))) { track in
-                    Button {
-                        music.playLibraryTrack(track)
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(track.title)
-                                    .font(.body.weight(.medium))
-                                    .foregroundStyle(.primary)
-                                Text(track.artist)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "play.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(AppTheme.accent)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var libraryArtistsSection: some View {
-        Group {
-            if !music.topArtists.isEmpty {
-                Text("Artists in your library")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 8)
-                ForEach(Array(music.topArtists.prefix(6))) { artist in
-                    Button {
-                        music.playLibraryArtist(artist)
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(artist.name)
-                                    .font(.body.weight(.medium))
-                                    .foregroundStyle(.primary)
-                                Text("Top: \(artist.topSong) · \(artist.plays) plays in library")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "shuffle.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(AppTheme.accentSecondary)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
     }
 
     @ViewBuilder

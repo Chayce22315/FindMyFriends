@@ -4,7 +4,7 @@ struct ContentView: View {
     @State private var tab: Tab = .map
 
     private enum Tab: Hashable {
-        case map, places, trips, circle, move, you
+        case map, places, trips, circle, move, music, you
     }
 
     var body: some View {
@@ -42,6 +42,12 @@ struct ContentView: View {
                     Label("Move", systemImage: "figure.walk")
                 }
                 .tag(Tab.move)
+
+            MusicTabView()
+                .tabItem {
+                    Label("Music", systemImage: "music.note")
+                }
+                .tag(Tab.music)
 
             ProfileProgressView()
                 .tabItem {
