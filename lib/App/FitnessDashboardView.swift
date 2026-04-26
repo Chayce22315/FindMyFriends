@@ -215,12 +215,17 @@ struct FitnessDashboardView: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                 Button {
-                    Task { await music.requestAccess() }
+                    Task { await music.forceReloadMusicInsights() }
                 } label: {
                     Label("Refresh music & library", systemImage: "arrow.clockwise")
                         .font(.caption.weight(.semibold))
                 }
                 .buttonStyle(.bordered)
+                if let msg = music.playbackMessage, !msg.isEmpty {
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             }
         }
         .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
@@ -232,16 +237,29 @@ struct FitnessDashboardView: View {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader(
                     title: "Recently played (Apple Music)",
-                    subtitle: "From your subscription — tap to play in the Music app."
+                    subtitle: "Cloud history when available; “Now playing” shows what the Music app is playing right now."
                 )
-                if music.appleMusicRecentSongs.isEmpty {
-                    Text("Play something in Apple Music, then tap Refresh above.")
-                        .font(.caption)
+                if !music.musicAppNowPlayingRows.isEmpty {
+                    Text("Now playing (Music app)")
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                } else {
+                    ForEach(music.musicAppNowPlayingRows) { track in
+                        musicAppNowPlayingRow(track)
+                    }
+                }
+                if !music.appleMusicRecentSongs.isEmpty {
+                    Text("Recent from Apple Music")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, music.musicAppNowPlayingRows.isEmpty ? 0 : 8)
                     ForEach(music.appleMusicRecentSongs) { song in
                         appleMusicSongRow(song)
                     }
+                }
+                if music.appleMusicRecentSongs.isEmpty, music.musicAppNowPlayingRows.isEmpty {
+                    Text("Open the Music app and start playback, then tap Refresh above. If you sideload, enable HealthKit + MusicKit for your Team ID in the Apple Developer portal so entitlements match.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -272,6 +290,24 @@ struct FitnessDashboardView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func musicAppNowPlayingRow(_ track: MusicTrack) -> some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(track.title)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+                Text(track.artist)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "waveform")
+                .font(.title3)
+                .foregroundStyle(AppTheme.accent)
+        }
     }
 
     @ViewBuilder

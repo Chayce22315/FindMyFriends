@@ -100,6 +100,16 @@ final class ActivityHealthService: ObservableObject {
         }
         store.execute(query)
         observerQuery = query
+
+        // Matches `com.apple.developer.healthkit.background-delivery` in App.entitlements; avoids
+        // capability/profile mismatches and lets the system wake the app for step updates.
+        store.enableBackgroundDelivery(for: stepType, frequency: .hourly) { [weak self] success, error in
+            if !success, let error {
+                DispatchQueue.main.async {
+                    self?.lastHealthError = error.localizedDescription
+                }
+            }
+        }
     }
 
     private func updateAuthorizationStatus() {

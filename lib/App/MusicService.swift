@@ -27,6 +27,8 @@ final class MusicService: ObservableObject {
     @Published private(set) var topArtists: [MusicArtist] = []
     /// From Apple Music subscription / cloud (MusicKit), not the downloaded-library query.
     @Published private(set) var appleMusicRecentSongs: [Song] = []
+    /// Title/artist from the Music app / system player (works for many Apple Music streams).
+    @Published private(set) var musicAppNowPlayingRows: [MusicTrack] = []
     @Published private(set) var playbackMessage: String?
 
     private var didLoadLibraryInsights = false
@@ -60,8 +62,18 @@ final class MusicService: ObservableObject {
         }
         await loadCatalogRecentlyPlayedIfNeeded()
         await MainActor.run {
+            refreshMusicAppNowPlayingPreview()
             loadLibraryInsightsIfNeeded()
         }
+    }
+
+    /// Use after “Refresh” so catalog + library refetch even if a prior load failed mid-flight.
+    func forceReloadMusicInsights() async {
+        await MainActor.run {
+            didLoadLibraryInsights = false
+            didLoadCatalogRecent = false
+        }
+        await reloadAllInsights()
     }
 
     func loadLibraryInsightsIfNeeded() {
@@ -78,22 +90,51 @@ final class MusicService: ObservableObject {
     private func loadCatalogRecentlyPlayedIfNeeded() async {
         guard isAuthorized else { return }
         guard !didLoadCatalogRecent else { return }
-        didLoadCatalogRecent = true
+        do {
+            let subscription = try await MusicSubscription.current
+            guard subscription.canPlayCatalogContent else {
+                await MainActor.run {
+                    appleMusicRecentSongs = []
+                    playbackMessage = "An active Apple Music subscription is required for cloud listening history in the app."
+                    didLoadCatalogRecent = true
+                }
+                return
+            }
+        } catch {
+            await MainActor.run {
+                appleMusicRecentSongs = []
+                playbackMessage = error.localizedDescription
+                didLoadCatalogRecent = false
+            }
+            return
+        }
+
         do {
             let request = MusicRecentlyPlayedRequest<Song>()
             let response = try await request.response()
             await MainActor.run {
                 appleMusicRecentSongs = Array(response.items.prefix(20))
                 if appleMusicRecentSongs.isEmpty {
-                    playbackMessage = "No Apple Music plays yet — stream a song in Music, then tap Refresh."
+                    playbackMessage = "Apple Music has no recent plays on record yet — try the “Now playing (Music app)” row below, or play a full song and tap Refresh."
+                } else {
+                    playbackMessage = nil
                 }
+                didLoadCatalogRecent = true
             }
         } catch {
             await MainActor.run {
                 appleMusicRecentSongs = []
                 playbackMessage = error.localizedDescription
+                didLoadCatalogRecent = false
             }
         }
+    }
+
+    private func refreshMusicAppNowPlayingPreview() {
+        musicAppNowPlayingRows = []
+        let player = MPMusicPlayerController.systemMusicPlayer
+        guard let item = player.nowPlayingItem else { return }
+        musicAppNowPlayingRows = [Self.mapTrack(item)]
     }
 
     /// Play a catalog `Song` from Apple Music (needs subscription + MusicKit auth).
