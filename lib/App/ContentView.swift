@@ -8,7 +8,11 @@ struct ContentView: View {
     }
 
     var body: some View {
-        TabView(selection: $tab) {
+        ZStack {
+            AppTheme.backgroundGradient
+                .ignoresSafeArea()
+
+            TabView(selection: $tab) {
             MapExploreView()
                 .tabItem {
                     Label("Map", systemImage: "map.fill")
@@ -44,7 +48,8 @@ struct ContentView: View {
                     Label("You", systemImage: "sparkles")
                 }
                 .tag(Tab.you)
+            }
+            .tint(AppTheme.accent)
         }
-        .tint(AppTheme.accent)
     }
 }

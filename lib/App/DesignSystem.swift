@@ -10,7 +10,14 @@ enum LayoutMetrics {
     /// Small phones (e.g. mini, SE) need shorter fixed blocks so the scene is not clipped.
     static var isCompactPhone: Bool { screenHeight < 700 || screenWidth < 360 }
 
-    static var contentMaxWidth: CGFloat { isXLPhone ? 840 : (isLargePhone ? 760 : 600) }
+    /// On **iPhone**, do not clamp scroll content to a fixed max width (avoids a “short / narrow” column with empty sides).
+    /// Keep a readable cap on **iPad** only.
+    static var contentMaxWidth: CGFloat {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return isXLPhone ? 840 : 760
+        }
+        return .infinity
+    }
     static var cardPadding: CGFloat { isXLPhone ? 28 : (isLargePhone ? 24 : 20) }
     static var sectionSpacing: CGFloat { isXLPhone ? 36 : (isLargePhone ? 32 : 28) }
     static var pageHorizontalPadding: CGFloat { isXLPhone ? 6 : (isLargePhone ? 12 : 20) }
@@ -28,9 +35,15 @@ struct ContentMaxWidthModifier: ViewModifier {
     var maxWidth: CGFloat = LayoutMetrics.contentMaxWidth
 
     func body(content: Content) -> some View {
-        content
-            .frame(maxWidth: maxWidth)
-            .frame(maxWidth: .infinity)
+        Group {
+            if maxWidth.isFinite {
+                content
+                    .frame(maxWidth: maxWidth)
+                    .frame(maxWidth: .infinity)
+            } else {
+                content.frame(maxWidth: .infinity)
+            }
+        }
     }
 }
 
