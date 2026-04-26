@@ -78,12 +78,17 @@ struct FitnessDashboardView: View {
                 progress.syncXPFromSteps(health.stepsToday)
                 music.refreshStatus()
                 music.loadInsightsIfNeeded()
+                music.beginLivePlaybackUpdates()
+            }
+            .onDisappear {
+                music.endLivePlaybackUpdates()
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     health.refreshAuthorizationAndData()
                     music.refreshStatus()
                     music.loadInsightsIfNeeded()
+                    music.refreshLivePlaybackFromPlayers()
                 }
             }
             .onChange(of: health.stepsToday) { _, newValue in
@@ -237,27 +242,32 @@ struct FitnessDashboardView: View {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader(
                     title: "Recently played (Apple Music)",
-                    subtitle: "Cloud history when available; “Now playing” shows what the Music app is playing right now."
+                    subtitle: "Now playing updates live. The track before the last change appears under the current one. Cloud list refreshes when you tap Refresh."
                 )
-                if !music.musicAppNowPlayingRows.isEmpty {
-                    Text("Now playing (Music app)")
+                if let now = music.liveNowPlaying {
+                    Text("Now playing")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    ForEach(music.musicAppNowPlayingRows) { track in
-                        musicAppNowPlayingRow(track)
+                    livePlaybackLineRow(now, icon: "waveform")
+                    if let prev = music.livePreviousTrack {
+                        Text("Previous")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 6)
+                        livePlaybackLineRow(prev, icon: "backward.end.fill")
                     }
                 }
                 if !music.appleMusicRecentSongs.isEmpty {
-                    Text("Recent from Apple Music")
+                    Text("Recent from Apple Music (catalog)")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .padding(.top, music.musicAppNowPlayingRows.isEmpty ? 0 : 8)
+                        .padding(.top, music.liveNowPlaying == nil ? 0 : 10)
                     ForEach(music.appleMusicRecentSongs) { song in
                         appleMusicSongRow(song)
                     }
                 }
-                if music.appleMusicRecentSongs.isEmpty, music.musicAppNowPlayingRows.isEmpty {
-                    Text("Open the Music app and start playback, then tap Refresh above. If you sideload, enable HealthKit + MusicKit for your Team ID in the Apple Developer portal so entitlements match.")
+                if music.liveNowPlaying == nil, music.appleMusicRecentSongs.isEmpty {
+                    Text("Open the Music app and start playback — the current track appears here without tapping Refresh. If catalog features show a developer token error, sideload signing may not support MusicKit; live playback from the Music app can still work.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -293,18 +303,18 @@ struct FitnessDashboardView: View {
     }
 
     @ViewBuilder
-    private func musicAppNowPlayingRow(_ track: MusicTrack) -> some View {
+    private func livePlaybackLineRow(_ line: LivePlaybackLine, icon: String) -> some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(track.title)
+                Text(line.title)
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
-                Text(track.artist)
+                Text(line.artist)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Image(systemName: "waveform")
+            Image(systemName: icon)
                 .font(.title3)
                 .foregroundStyle(AppTheme.accent)
         }

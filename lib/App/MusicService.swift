@@ -1,6 +1,14 @@
+import Combine
 import Foundation
 import MediaPlayer
 import MusicKit
+
+/// Current / previous line from the system or in-app music player (stable `id` for SwiftUI).
+struct LivePlaybackLine: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let artist: String
+}
 
 struct MusicTrack: Identifiable, Hashable, Codable {
     let id: UUID
@@ -27,15 +35,40 @@ final class MusicService: ObservableObject {
     @Published private(set) var topArtists: [MusicArtist] = []
     /// From Apple Music subscription / cloud (MusicKit), not the downloaded-library query.
     @Published private(set) var appleMusicRecentSongs: [Song] = []
-    /// Title/artist from the Music app / system player (works for many Apple Music streams).
-    @Published private(set) var musicAppNowPlayingRows: [MusicTrack] = []
+    /// Live line from Music app / system music player (updates via notifications + timer).
+    @Published private(set) var liveNowPlaying: LivePlaybackLine?
+    /// Last track before the current one changed (e.g. after skipping or auto-advance).
+    @Published private(set) var livePreviousTrack: LivePlaybackLine?
     @Published private(set) var playbackMessage: String?
 
     private var didLoadLibraryInsights = false
     private var didLoadCatalogRecent = false
 
+    private var livePlaybackObservationCount: Int = 0
+    private var playbackNotificationObservers: [NSObjectProtocol] = []
+    private var livePlaybackTimer: AnyCancellable?
+
     var isAuthorized: Bool { status == .authorized }
     var isLibraryAuthorized: Bool { libraryStatus == .authorized }
+
+    deinit {
+        endLivePlaybackUpdatesInternal()
+    }
+
+    /// Call from views that should receive live now/previous updates (e.g. `onAppear`).
+    func beginLivePlaybackUpdates() {
+        livePlaybackObservationCount += 1
+        guard livePlaybackObservationCount == 1 else { return }
+        startLivePlaybackUpdatesInternal()
+    }
+
+    /// Pair every `begin` with `end` from the same view lifecycle (e.g. `onDisappear`).
+    func endLivePlaybackUpdates() {
+        livePlaybackObservationCount = max(0, livePlaybackObservationCount - 1)
+        if livePlaybackObservationCount == 0 {
+            endLivePlaybackUpdatesInternal()
+        }
+    }
 
     func refreshStatus() {
         status = MusicAuthorization.currentStatus
@@ -62,7 +95,7 @@ final class MusicService: ObservableObject {
         }
         await loadCatalogRecentlyPlayedIfNeeded()
         await MainActor.run {
-            refreshMusicAppNowPlayingPreview()
+            refreshLivePlaybackFromPlayers()
             loadLibraryInsightsIfNeeded()
         }
     }
@@ -103,7 +136,7 @@ final class MusicService: ObservableObject {
         } catch {
             await MainActor.run {
                 appleMusicRecentSongs = []
-                playbackMessage = error.localizedDescription
+                playbackMessage = Self.friendlyMusicKitMessage(for: error)
                 didLoadCatalogRecent = false
             }
             return
@@ -115,7 +148,7 @@ final class MusicService: ObservableObject {
             await MainActor.run {
                 appleMusicRecentSongs = Array(response.items.prefix(20))
                 if appleMusicRecentSongs.isEmpty {
-                    playbackMessage = "Apple Music has no recent plays on record yet — try the “Now playing (Music app)” row below, or play a full song and tap Refresh."
+                    playbackMessage = "Apple Music has no recent plays on record yet — live “Now playing” below still follows the Music app."
                 } else {
                     playbackMessage = nil
                 }
@@ -124,17 +157,127 @@ final class MusicService: ObservableObject {
         } catch {
             await MainActor.run {
                 appleMusicRecentSongs = []
-                playbackMessage = error.localizedDescription
+                playbackMessage = Self.friendlyMusicKitMessage(for: error)
                 didLoadCatalogRecent = false
             }
         }
     }
 
-    private func refreshMusicAppNowPlayingPreview() {
-        musicAppNowPlayingRows = []
+    private func startLivePlaybackUpdatesInternal() {
         let player = MPMusicPlayerController.systemMusicPlayer
-        guard let item = player.nowPlayingItem else { return }
-        musicAppNowPlayingRows = [Self.mapTrack(item)]
+        player.beginGeneratingPlaybackNotifications()
+        let center = NotificationCenter.default
+        let names: [Notification.Name] = [
+            .MPMusicPlayerControllerNowPlayingItemDidChange,
+            .MPMusicPlayerControllerPlaybackStateDidChange,
+        ]
+        for name in names {
+            let token = center.addObserver(forName: name, object: player, queue: .main) { [weak self] _ in
+                self?.refreshLivePlaybackFromPlayers()
+            }
+            playbackNotificationObservers.append(token)
+        }
+        refreshLivePlaybackFromPlayers()
+        livePlaybackTimer = Timer.publish(every: 1.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.refreshLivePlaybackFromPlayers()
+            }
+    }
+
+    private func endLivePlaybackUpdatesInternal() {
+        livePlaybackTimer?.cancel()
+        livePlaybackTimer = nil
+        let center = NotificationCenter.default
+        for token in playbackNotificationObservers {
+            center.removeObserver(token)
+        }
+        playbackNotificationObservers.removeAll()
+        MPMusicPlayerController.systemMusicPlayer.endGeneratingPlaybackNotifications()
+    }
+
+    /// Reads system + MusicKit players and updates `liveNowPlaying` / `livePreviousTrack`.
+    func refreshLivePlaybackFromPlayers() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let line = Self.pickBestLiveLine()
+            self.applyLiveLineTransition(to: line)
+        }
+    }
+
+    private func applyLiveLineTransition(to newLine: LivePlaybackLine?) {
+        guard let newLine else {
+            if liveNowPlaying != nil {
+                livePreviousTrack = liveNowPlaying
+            }
+            liveNowPlaying = nil
+            return
+        }
+        if let current = liveNowPlaying, current.id == newLine.id {
+            return
+        }
+        if let current = liveNowPlaying {
+            livePreviousTrack = current
+        }
+        liveNowPlaying = newLine
+    }
+
+    private static func pickBestLiveLine() -> LivePlaybackLine? {
+        let mp = MPMusicPlayerController.systemMusicPlayer
+        let mpLine: LivePlaybackLine? = {
+            guard let item = mp.nowPlayingItem else { return nil }
+            switch mp.playbackState {
+            case .playing, .paused, .interrupted:
+                break
+            default:
+                return nil
+            }
+            return liveLine(from: item)
+        }()
+
+        let mkLine: LivePlaybackLine? = {
+            let player = SystemMusicPlayer.shared
+            let status = player.state.playbackStatus
+            guard status == .playing || status == .paused else { return nil }
+            guard let entry = player.queue.currentEntry else { return nil }
+            let title = entry.title
+            let artist = entry.subtitle ?? ""
+            // `MusicItemID` string form is SDK-dependent; title+artist is enough for now/previous UI.
+            let id = "mk:\(title)|\(artist)"
+            return LivePlaybackLine(id: id, title: title, artist: artist)
+        }()
+
+        // Prefer the system / Music app queue when present so we don’t show a stale in-app
+        // `SystemMusicPlayer` queue after the user switches back to the Music app.
+        if let mpLine { return mpLine }
+        return mkLine
+    }
+
+    private static func liveLine(from item: MPMediaItem) -> LivePlaybackLine {
+        let title = item.title ?? "Unknown Track"
+        let artist = item.artist ?? "Unknown Artist"
+        let id: String
+        if item.persistentID != 0 {
+            id = "mp:\(item.persistentID)"
+        } else {
+            id = "mp:\(title)|\(artist)"
+        }
+        return LivePlaybackLine(id: id, title: title, artist: artist)
+    }
+
+    /// MusicKit talks to Apple’s servers using a short-lived **developer token** tied to your
+    /// MusicKit / developer configuration. This often fails for sideloaded or re-signed builds.
+    static func friendlyMusicKitMessage(for error: Error) -> String {
+        let text = error.localizedDescription
+        let lower = text.lowercased()
+        if lower.contains("developer token") || lower.contains("request developer token") {
+            return """
+            MusicKit could not obtain a developer token from Apple (catalog / cloud features). That usually means this install is not signed for MusicKit the way Apple expects—common with some third-party sideload signing. Live “Now playing” below still follows the Music app. For full MusicKit, use Xcode with your Apple Developer team or TestFlight.
+            """
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespaces)
+        }
+        return text
     }
 
     /// Play a catalog `Song` from Apple Music (needs subscription + MusicKit auth).
@@ -148,9 +291,12 @@ final class MusicService: ObservableObject {
             let player = SystemMusicPlayer.shared
             player.queue = [song]
             try await player.play()
-            await MainActor.run { playbackMessage = "Playing \(song.title)" }
+            await MainActor.run {
+                playbackMessage = "Playing \(song.title)"
+                refreshLivePlaybackFromPlayers()
+            }
         } catch {
-            await MainActor.run { playbackMessage = error.localizedDescription }
+            await MainActor.run { playbackMessage = Self.friendlyMusicKitMessage(for: error) }
         }
     }
 
