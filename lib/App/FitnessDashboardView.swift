@@ -19,7 +19,7 @@ struct FitnessDashboardView: View {
     }
 
     private var caloriePercent: CGFloat {
-        CGFloat(health.activeCalories / max(health.activeCalorieGoal, 1))
+        CGFloat(health.activeCalories) / CGFloat(max(health.activeCalorieGoal, 1))
     }
 
     private var stepsValue: String {
@@ -53,375 +53,19 @@ struct FitnessDashboardView: View {
                 ScrollView {
                     VStack(spacing: LayoutMetrics.sectionSpacing) {
                         heroHeader
-
-                        GlassCard {
-                            VStack(spacing: 20) {
-                                Text("Today")
-                                    .font(.title3.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                                GeometryReader { geo in
-                                    let s = min(1.55, max(1.0, geo.size.width / 250))
-                                    let wide = geo.size.width > 400
-                                    VStack(spacing: 16) {
-                                        ActivityRingView(
-                                            stepProgress: stepPercent,
-                                            calorieProgress: caloriePercent,
-                                            scale: s
-                                        )
-                                        if wide {
-                                            HStack(spacing: 24) {
-                                                stat(
-                                                    title: "Steps",
-                                                    value: stepsValue,
-                                                    caption: "goal \(health.stepGoal)",
-                                                    valueLarge: true
-                                                )
-                                                stat(
-                                                    title: "Active",
-                                                    value: activeCaloriesValue,
-                                                    caption: "kcal",
-                                                    valueLarge: true
-                                                )
-                                                stat(
-                                                    title: "~Distance",
-                                                    value: distanceValue,
-                                                    caption: "km",
-                                                    valueLarge: true
-                                                )
-                                            }
-                                        } else {
-                                            HStack(spacing: 28) {
-                                                stat(
-                                                    title: "Steps",
-                                                    value: stepsValue,
-                                                    caption: "goal \(health.stepGoal)",
-                                                    valueLarge: false
-                                                )
-                                                stat(
-                                                    title: "Active",
-                                                    value: activeCaloriesValue,
-                                                    caption: "kcal",
-                                                    valueLarge: false
-                                                )
-                                            }
-                                            stat(
-                                                title: "~Distance",
-                                                value: "\(distanceValue) km",
-                                                caption: "rough from steps",
-                                                valueLarge: false
-                                            )
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                }
-                                .frame(height: LayoutMetrics.heroCardHeight)
-                            }
-                        }
-                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
-
-                        GlassCard {
-                            VStack(alignment: .leading, spacing: 16) {
-                                SectionHeader(title: "Fitness", subtitle: "Rings close as you move, XP syncs from your steps.")
-                                Button {
-                                    if health.authorizationStatus == .sharingDenied {
-                                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                                            openURL(url)
-                                        }
-                                    } else {
-                                        health.requestAccess()
-                                    }
-                                } label: {
-                                    Label(
-                                        healthButtonTitle,
-                                        systemImage: "heart.fill"
-                                    )
-                                    .font(.body.weight(.semibold))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 4)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.large)
-                                .tint(Color.pink.opacity(0.9))
-                                .disabled(!health.healthDataAvailable)
-
-                                if !health.healthDataAvailable {
-                                    Text("Health data is not available on this device.")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                } else if health.authorizationStatus == .sharingDenied {
-                                    Text("Health access is off. Enable it in Settings to read steps.")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                } else if !health.isAuthorized {
-                                    Text("Tap Connect, then turn on Steps and Active Energy in the Health sheet.")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                                if let err = health.lastHealthError, !err.isEmpty {
-                                    Text(err)
-                                        .font(.caption)
-                                        .foregroundStyle(.orange)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
-
-                        GlassCard {
-                            VStack(alignment: .leading, spacing: 16) {
-                                SectionHeader(title: "Music", subtitle: "Connect Apple Music for your move sessions.")
-                                Button {
-                                    Task {
-                                        if music.isAuthorized {
-                                            if let url = URL(string: "music://") {
-                                                openURL(url)
-                                            }
-                                        } else {
-                                            await music.requestAccess()
-                                        }
-                                    }
-                                } label: {
-                                    Label(
-                                        music.isAuthorized ? "Open Apple Music" : "Connect Apple Music",
-                                        systemImage: "music.note"
-                                    )
-                                    .font(.body.weight(.semibold))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 4)
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.large)
-
-                                Text("Apple Music: \(music.statusLabel)")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                Text("Media Library: \(music.libraryStatusLabel) — needed for downloaded songs on device.")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                                Button {
-                                    Task { await music.requestAccess() }
-                                } label: {
-                                    Label("Refresh music & library", systemImage: "arrow.clockwise")
-                                        .font(.caption.weight(.semibold))
-                                }
-                                .buttonStyle(.bordered)
-                            }
-                        }
-                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
-
+                        ringsCard
+                        healthCard
+                        musicConnectCard
                         if music.isAuthorized {
-                            GlassCard {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    SectionHeader(
-                                        title: "Recently played (Apple Music)",
-                                        subtitle: "From your subscription — tap to play in the Music app."
-                                    )
-                                    if music.appleMusicRecentSongs.isEmpty {
-                                        Text("Play something in Apple Music, then tap Refresh above.")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    } else {
-                                        ForEach(music.appleMusicRecentSongs, id: \.id) { song in
-                                            Button {
-                                                Task { await music.playAppleMusicSong(song) }
-                                            } label: {
-                                                HStack {
-                                                    VStack(alignment: .leading, spacing: 2) {
-                                                        Text(song.title)
-                                                            .font(.body.weight(.medium))
-                                                            .foregroundStyle(.primary)
-                                                        if let a = song.artists.first?.name {
-                                                            Text(a)
-                                                                .font(.caption)
-                                                                .foregroundStyle(.secondary)
-                                                        }
-                                                    }
-                                                    Spacer()
-                                                    Image(systemName: "play.circle.fill")
-                                                        .font(.title2)
-                                                        .foregroundStyle(AppTheme.accent)
-                                                }
-                                                .contentShape(Rectangle())
-                                            }
-                                            .buttonStyle(.plain)
-                                            if song.id != music.appleMusicRecentSongs.last?.id {
-                                                Divider()
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+                            appleMusicRecentsCard
                         }
-
-                        GlassCard {
-                            VStack(alignment: .leading, spacing: 12) {
-                                SectionHeader(title: "Music Vibes", subtitle: "Quick picks for the next session.")
-                                if music.isAuthorized, !music.recommendations.isEmpty {
-                                    ForEach(music.recommendations.prefix(2)) { track in
-                                        HStack(spacing: 12) {
-                                            Image(systemName: "music.note")
-                                                .font(.title3)
-                                                .foregroundStyle(AppTheme.accent)
-                                                .frame(width: 28)
-                                            VStack(alignment: .leading, spacing: 4) {
-                                                Text(track.title)
-                                                    .font(.headline)
-                                                Text("\(track.artist) - \(track.duration)")
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                            Spacer()
-                                            Text(track.hapticsAllowed ? "Haptics On" : "Haptics Off")
-                                                .font(.caption2.weight(.semibold))
-                                                .foregroundStyle(track.hapticsAllowed ? AppTheme.accentSecondary : .secondary)
-                                        }
-                                        if track.id != music.recommendations.prefix(2).last?.id {
-                                            Divider()
-                                        }
-                                    }
-                                } else {
-                                    Text("Connect Apple Music to unlock personalized picks.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
-
+                        musicVibesCard
                         if music.isAuthorized {
-                            GlassCard {
-                                VStack(alignment: .leading, spacing: 14) {
-                                    SectionHeader(
-                                        title: "Your library (on device)",
-                                        subtitle: music.isLibraryAuthorized
-                                            ? "Downloaded or synced songs — tap to play."
-                                            : "Allow Media Library in Settings to see songs stored on this iPhone."
-                                    )
-                                    if music.isLibraryAuthorized {
-                                        if !music.recentlyPlayed.isEmpty {
-                                            Text("Recently played (library)")
-                                                .font(.subheadline.weight(.semibold))
-                                                .foregroundStyle(.secondary)
-                                            ForEach(music.recentlyPlayed.prefix(6)) { track in
-                                                Button {
-                                                    music.playLibraryTrack(track)
-                                                } label: {
-                                                    HStack {
-                                                        VStack(alignment: .leading, spacing: 2) {
-                                                            Text(track.title)
-                                                                .font(.body.weight(.medium))
-                                                                .foregroundStyle(.primary)
-                                                            Text(track.artist)
-                                                                .font(.caption)
-                                                                .foregroundStyle(.secondary)
-                                                        }
-                                                        Spacer()
-                                                        Image(systemName: "play.circle.fill")
-                                                            .font(.title2)
-                                                            .foregroundStyle(AppTheme.accent)
-                                                    }
-                                                    .contentShape(Rectangle())
-                                                }
-                                                .buttonStyle(.plain)
-                                                if track.id != music.recentlyPlayed.prefix(6).last?.id {
-                                                    Divider()
-                                                }
-                                            }
-                                        }
-                                        if !music.topArtists.isEmpty {
-                                            Text("Artists in your library")
-                                                .font(.subheadline.weight(.semibold))
-                                                .foregroundStyle(.secondary)
-                                                .padding(.top, 8)
-                                            ForEach(music.topArtists.prefix(6)) { artist in
-                                                Button {
-                                                    music.playLibraryArtist(artist)
-                                                } label: {
-                                                    HStack {
-                                                        VStack(alignment: .leading, spacing: 2) {
-                                                            Text(artist.name)
-                                                                .font(.body.weight(.medium))
-                                                                .foregroundStyle(.primary)
-                                                            Text("Top: \(artist.topSong) · \(artist.plays) plays in library")
-                                                                .font(.caption)
-                                                                .foregroundStyle(.secondary)
-                                                        }
-                                                        Spacer()
-                                                        Image(systemName: "shuffle.circle.fill")
-                                                            .font(.title2)
-                                                            .foregroundStyle(AppTheme.accentSecondary)
-                                                    }
-                                                    .contentShape(Rectangle())
-                                                }
-                                                .buttonStyle(.plain)
-                                                if artist.id != music.topArtists.prefix(6).last?.id {
-                                                    Divider()
-                                                }
-                                            }
-                                        }
-                                    }
-                                    if let msg = music.playbackMessage {
-                                        Text(msg)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .padding(.top, 4)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+                            libraryMusicCard
                         }
-
-                        GlassCard {
-                            VStack(alignment: .leading, spacing: 14) {
-                                SectionHeader(title: "This week", subtitle: "A quick snapshot, full history lives in Health.")
-                                HStack(spacing: 12) {
-                                    weekPill(icon: "flame.fill", title: "Move", value: "\(min(7, max(1, progress.level))) day streak")
-                                    weekPill(icon: "figure.walk", title: "Steps", value: "Today: \(health.stepsToday)")
-                                }
-                                HStack(spacing: 12) {
-                                    weekPill(icon: "heart.fill", title: "Health", value: health.isAuthorized ? "Connected" : "Not linked")
-                                    weekPill(icon: "sparkles", title: "Level", value: "\(progress.level)")
-                                }
-                            }
-                        }
-                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
-
-                        GlassCard {
-                            VStack(alignment: .leading, spacing: 12) {
-                                SectionHeader(title: "XP from movement", subtitle: "Earn XP as your day fills up.")
-                                HStack(spacing: 12) {
-                                    Image(systemName: "sparkles")
-                                        .font(.title2)
-                                        .foregroundStyle(AppTheme.accentSecondary)
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("\(progress.xp) XP")
-                                            .font(.title2.weight(.bold))
-                                        Text("Level \(progress.level) - keep closing rings")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer(minLength: 0)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
-
-                        GlassCard {
-                            VStack(alignment: .leading, spacing: 10) {
-                                SectionHeader(title: "Goals", subtitle: "Defaults you can tune later.")
-                                LabeledContent("Step goal") {
-                                    Text("\(health.stepGoal)")
-                                        .font(.title3.monospacedDigit().weight(.medium))
-                                }
-                                LabeledContent("Active energy goal") {
-                                    Text("\(Int(health.activeCalorieGoal)) kcal")
-                                        .font(.title3.monospacedDigit().weight(.medium))
-                                }
-                            }
-                        }
-                        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+                        weekCard
+                        xpCard
+                        goalsCard
                     }
                     .padding(.vertical, 28)
                     .contentMaxWidth()
@@ -435,17 +79,385 @@ struct FitnessDashboardView: View {
                 music.refreshStatus()
                 music.loadInsightsIfNeeded()
             }
-            .onChange(of: scenePhase) { phase in
+            .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     health.refreshAuthorizationAndData()
                     music.refreshStatus()
                     music.loadInsightsIfNeeded()
                 }
             }
-            .onChange(of: health.stepsToday) { newValue in
+            .onChange(of: health.stepsToday) { _, newValue in
                 progress.syncXPFromSteps(newValue)
             }
         }
+    }
+
+    // MARK: - Sections (split for Swift type-checker in -O builds)
+
+    @ViewBuilder
+    private var ringsCard: some View {
+        GlassCard {
+            VStack(spacing: 20) {
+                Text("Today")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                GeometryReader { geo in
+                    let s = min(1.55, max(1.0, geo.size.width / 250))
+                    let wide = geo.size.width > 400
+                    VStack(spacing: 16) {
+                        ActivityRingView(
+                            stepProgress: stepPercent,
+                            calorieProgress: caloriePercent,
+                            scale: s
+                        )
+                        if wide {
+                            HStack(spacing: 24) {
+                                stat(title: "Steps", value: stepsValue, caption: "goal \(health.stepGoal)", valueLarge: true)
+                                stat(title: "Active", value: activeCaloriesValue, caption: "kcal", valueLarge: true)
+                                stat(title: "~Distance", value: distanceValue, caption: "km", valueLarge: true)
+                            }
+                        } else {
+                            HStack(spacing: 28) {
+                                stat(title: "Steps", value: stepsValue, caption: "goal \(health.stepGoal)", valueLarge: false)
+                                stat(title: "Active", value: activeCaloriesValue, caption: "kcal", valueLarge: false)
+                            }
+                            stat(title: "~Distance", value: "\(distanceValue) km", caption: "rough from steps", valueLarge: false)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .frame(height: LayoutMetrics.heroCardHeight)
+            }
+        }
+        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+    }
+
+    @ViewBuilder
+    private var healthCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 16) {
+                SectionHeader(title: "Fitness", subtitle: "Rings close as you move, XP syncs from your steps.")
+                Button {
+                    if health.authorizationStatus == .sharingDenied {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            openURL(url)
+                        }
+                    } else {
+                        health.requestAccess()
+                    }
+                } label: {
+                    Label(healthButtonTitle, systemImage: "heart.fill")
+                        .font(.body.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .tint(Color.pink.opacity(0.9))
+                .disabled(!health.healthDataAvailable)
+
+                if !health.healthDataAvailable {
+                    Text("Health data is not available on this device.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else if health.authorizationStatus == .sharingDenied {
+                    Text("Health access is off. Enable it in Settings to read steps.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else if !health.isAuthorized {
+                    Text("Tap Connect, then turn on Steps and Active Energy in the Health sheet.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                if let err = health.lastHealthError, !err.isEmpty {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+    }
+
+    @ViewBuilder
+    private var musicConnectCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 16) {
+                SectionHeader(title: "Music", subtitle: "Connect Apple Music for your move sessions.")
+                Button {
+                    Task {
+                        if music.isAuthorized {
+                            if let url = URL(string: "music://") {
+                                openURL(url)
+                            }
+                        } else {
+                            await music.requestAccess()
+                        }
+                    }
+                } label: {
+                    Label(
+                        music.isAuthorized ? "Open Apple Music" : "Connect Apple Music",
+                        systemImage: "music.note"
+                    )
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+
+                Text("Apple Music: \(music.statusLabel)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text("Media Library: \(music.libraryStatusLabel) — needed for downloaded songs on device.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Button {
+                    Task { await music.requestAccess() }
+                } label: {
+                    Label("Refresh music & library", systemImage: "arrow.clockwise")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+    }
+
+    @ViewBuilder
+    private var appleMusicRecentsCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(
+                    title: "Recently played (Apple Music)",
+                    subtitle: "From your subscription — tap to play in the Music app."
+                )
+                if music.appleMusicRecentSongs.isEmpty {
+                    Text("Play something in Apple Music, then tap Refresh above.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(music.appleMusicRecentSongs) { song in
+                        appleMusicSongRow(song)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+    }
+
+    @ViewBuilder
+    private func appleMusicSongRow(_ song: Song) -> some View {
+        Button {
+            Task { await music.playAppleMusicSong(song) }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(song.title)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                    if let a = song.artists.first?.name {
+                        Text(a)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Image(systemName: "play.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(AppTheme.accent)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var musicVibesCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(title: "Music Vibes", subtitle: "Quick picks for the next session.")
+                if music.isAuthorized, !music.recommendations.isEmpty {
+                    ForEach(Array(music.recommendations.prefix(2))) { track in
+                        HStack(spacing: 12) {
+                            Image(systemName: "music.note")
+                                .font(.title3)
+                                .foregroundStyle(AppTheme.accent)
+                                .frame(width: 28)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(track.title)
+                                    .font(.headline)
+                                Text("\(track.artist) - \(track.duration)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text(track.hapticsAllowed ? "Haptics On" : "Haptics Off")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(track.hapticsAllowed ? AppTheme.accentSecondary : .secondary)
+                        }
+                    }
+                } else {
+                    Text("Connect Apple Music to unlock personalized picks.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+    }
+
+    @ViewBuilder
+    private var libraryMusicCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader(
+                    title: "Your library (on device)",
+                    subtitle: music.isLibraryAuthorized
+                        ? "Downloaded or synced songs — tap to play."
+                        : "Allow Media Library in Settings to see songs stored on this iPhone."
+                )
+                if music.isLibraryAuthorized {
+                    libraryRecentSection
+                    libraryArtistsSection
+                }
+                if let msg = music.playbackMessage {
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                }
+            }
+        }
+        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+    }
+
+    @ViewBuilder
+    private var libraryRecentSection: some View {
+        Group {
+            if !music.recentlyPlayed.isEmpty {
+                Text("Recently played (library)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                ForEach(Array(music.recentlyPlayed.prefix(6))) { track in
+                    Button {
+                        music.playLibraryTrack(track)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(track.title)
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(.primary)
+                                Text(track.artist)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "play.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(AppTheme.accent)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var libraryArtistsSection: some View {
+        Group {
+            if !music.topArtists.isEmpty {
+                Text("Artists in your library")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 8)
+                ForEach(Array(music.topArtists.prefix(6))) { artist in
+                    Button {
+                        music.playLibraryArtist(artist)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(artist.name)
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(.primary)
+                                Text("Top: \(artist.topSong) · \(artist.plays) plays in library")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "shuffle.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(AppTheme.accentSecondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var weekCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader(title: "This week", subtitle: "A quick snapshot, full history lives in Health.")
+                HStack(spacing: 12) {
+                    weekPill(icon: "flame.fill", title: "Move", value: "\(min(7, max(1, progress.level))) day streak")
+                    weekPill(icon: "figure.walk", title: "Steps", value: "Today: \(health.stepsToday)")
+                }
+                HStack(spacing: 12) {
+                    weekPill(icon: "heart.fill", title: "Health", value: health.isAuthorized ? "Connected" : "Not linked")
+                    weekPill(icon: "sparkles", title: "Level", value: "\(progress.level)")
+                }
+            }
+        }
+        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+    }
+
+    @ViewBuilder
+    private var xpCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(title: "XP from movement", subtitle: "Earn XP as your day fills up.")
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkles")
+                        .font(.title2)
+                        .foregroundStyle(AppTheme.accentSecondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(progress.xp) XP")
+                            .font(.title2.weight(.bold))
+                        Text("Level \(progress.level) - keep closing rings")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
+    }
+
+    @ViewBuilder
+    private var goalsCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeader(title: "Goals", subtitle: "Defaults you can tune later.")
+                LabeledContent("Step goal") {
+                    Text("\(health.stepGoal)")
+                        .font(.title3.monospacedDigit().weight(.medium))
+                }
+                LabeledContent("Active energy goal") {
+                    Text("\(Int(health.activeCalorieGoal)) kcal")
+                        .font(.title3.monospacedDigit().weight(.medium))
+                }
+            }
+        }
+        .padding(.horizontal, LayoutMetrics.pageHorizontalPadding)
     }
 
     private var heroHeader: some View {
