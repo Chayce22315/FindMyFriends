@@ -15,6 +15,8 @@ enum LayoutMetrics {
     static var sectionSpacing: CGFloat { isXLPhone ? 36 : (isLargePhone ? 32 : 28) }
     static var pageHorizontalPadding: CGFloat { isXLPhone ? 6 : (isLargePhone ? 12 : 20) }
     static var headerHorizontalPadding: CGFloat { pageHorizontalPadding + (isXLPhone ? 10 : 4) }
+    /// Overlays on full-screen map use full width on phones (avoid maxWidth clamp letterboxing).
+    static var mapOverlayHorizontalPadding: CGFloat { isCompactPhone ? 14 : (isXLPhone ? 18 : 16) }
     static var mapCardHeight: CGFloat { isXLPhone ? 300 : (isLargePhone ? 280 : 240) }
     static var heroCardHeight: CGFloat {
         if isCompactPhone { return 340 }
