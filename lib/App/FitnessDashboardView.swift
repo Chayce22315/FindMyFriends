@@ -258,7 +258,7 @@ struct FitnessDashboardView: View {
                     Text(song.title)
                         .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
-                    if let a = song.artists.first?.name {
+                    if let a = song.artists?.first?.name {
                         Text(a)
                             .font(.caption)
                             .foregroundStyle(.secondary)
