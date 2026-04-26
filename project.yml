@@ -26,6 +26,7 @@ targets:
     sources:
       - path: lib/App
       - path: lib/Shared
+      - path: Assets.xcassets
 
     settings:
       base:
@@ -33,6 +34,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.pixelatedstudios.findmyfriends
         SWIFT_VERSION: 5.0
         INFOPLIST_FILE: Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   FindMyFriendsWidget:
     type: app-extension
