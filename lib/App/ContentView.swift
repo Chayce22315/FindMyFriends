@@ -13,49 +13,53 @@ struct ContentView: View {
                 .ignoresSafeArea()
 
             TabView(selection: $tab) {
-            MapExploreView()
-                .tabItem {
-                    Label("Map", systemImage: "map.fill")
-                }
-                .tag(Tab.map)
+                MapExploreView()
+                    .tabItem {
+                        Label("Map", systemImage: "map.fill")
+                    }
+                    .tag(Tab.map)
 
-            PlacesView()
-                .tabItem {
-                    Label("Places", systemImage: "mappin.circle.fill")
-                }
-                .tag(Tab.places)
+                PlacesView()
+                    .tabItem {
+                        Label("Places", systemImage: "mappin.circle.fill")
+                    }
+                    .tag(Tab.places)
 
-            TripsView()
-                .tabItem {
-                    Label("Trips", systemImage: "location.north.line")
-                }
-                .tag(Tab.trips)
+                TripsView()
+                    .tabItem {
+                        Label("Trips", systemImage: "location.north.line")
+                    }
+                    .tag(Tab.trips)
 
-            FriendsFamilyView()
-                .tabItem {
-                    Label("Circle", systemImage: "person.2.fill")
-                }
-                .tag(Tab.circle)
+                FriendsFamilyView()
+                    .tabItem {
+                        Label("Circle", systemImage: "person.2.fill")
+                    }
+                    .tag(Tab.circle)
 
-            FitnessDashboardView()
-                .tabItem {
-                    Label("Move", systemImage: "figure.walk")
-                }
-                .tag(Tab.move)
+                FitnessDashboardView()
+                    .tabItem {
+                        Label("Move", systemImage: "figure.walk")
+                    }
+                    .tag(Tab.move)
 
-            MusicTabView()
-                .tabItem {
-                    Label("Music", systemImage: "music.note")
-                }
-                .tag(Tab.music)
+                MusicTabView()
+                    .tabItem {
+                        Label("Music", systemImage: "music.note")
+                    }
+                    .tag(Tab.music)
 
-            ProfileProgressView()
-                .tabItem {
-                    Label("You", systemImage: "sparkles")
-                }
-                .tag(Tab.you)
+                ProfileProgressView()
+                    .tabItem {
+                        Label("You", systemImage: "sparkles")
+                    }
+                    .tag(Tab.you)
             }
             .tint(AppTheme.accent)
+            .toolbarBackground(.ultraThinMaterial, for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
+            .toolbarColorScheme(.dark, for: .tabBar)
         }
+        .background(AppTheme.backgroundGradient.ignoresSafeArea())
     }
 }
