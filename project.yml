@@ -23,7 +23,6 @@ targets:
 
     sources:
       - path: lib/App
-      - path: lib/Shared
       - path: Assets.xcassets
 
     settings:
