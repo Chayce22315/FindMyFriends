@@ -6,6 +6,7 @@ struct FitnessDashboardView: View {
     @EnvironmentObject private var progress: UserProgressStore
 
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
 
     private var approxDistanceKm: Double {
         Double(health.stepsToday) * 0.000762
@@ -77,8 +78,6 @@ struct FitnessDashboardView: View {
         }
     }
 
-    // MARK: - Sections (split for Swift type-checker in -O builds)
-
     @ViewBuilder
     private var ringsCard: some View {
         GlassCard {
@@ -92,11 +91,7 @@ struct FitnessDashboardView: View {
                     let s = min(1.55, max(1.0, geo.size.width / 250))
                     let wide = geo.size.width > 400
                     VStack(spacing: 16) {
-                        ActivityRingView(
-                            stepProgress: stepPercent,
-                            calorieProgress: caloriePercent,
-                            scale: s
-                        )
+                        ActivityRingView(stepProgress: stepPercent, calorieProgress: caloriePercent, scale: s)
                         if wide {
                             HStack(spacing: 24) {
                                 stat(title: "Steps", value: stepsValue, caption: "goal \(health.stepGoal)", valueLarge: true)
