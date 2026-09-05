@@ -11,7 +11,6 @@ struct FindMyFriendsApp: App {
     @StateObject private var settings: AppSettings
     @StateObject private var music: MusicService
     @StateObject private var movementXP: MovementXPService
-    @StateObject private var liveActivity: LiveActivityManager
 
     init() {
         let tracking = TrackingService()
@@ -27,7 +26,6 @@ struct FindMyFriendsApp: App {
         _settings = StateObject(wrappedValue: settings)
         _music = StateObject(wrappedValue: MusicService())
         _movementXP = StateObject(wrappedValue: MovementXPService(tracking: tracking, progress: progress))
-        _liveActivity = StateObject(wrappedValue: LiveActivityManager(tracking: tracking, health: health, progress: progress))
     }
 
     var body: some Scene {
@@ -41,7 +39,6 @@ struct FindMyFriendsApp: App {
                 .environmentObject(contacts)
                 .environmentObject(settings)
                 .environmentObject(music)
-                .environmentObject(liveActivity)
                 .preferredColorScheme(.dark)
         }
     }
